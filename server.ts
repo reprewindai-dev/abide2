@@ -1170,7 +1170,7 @@ function generateFallbackBlueprint(
 
   const lowercaseNotes = notes.toLowerCase();
   
-  if (lowercaseNotes.includes("scooter") || lowercaseNotes.includes("fleet") || lowercaseNotes.includes("charging") || lowercaseNotes.includes("solar")) {
+  if (false) { // DISABLED M2M SCOOTER DEMO MODE
     title = "Sovereign M2M Scooter Fleet";
     tagline = "Electric micro-mobility units with automated solar re-charging via X402 payment settlements";
     
@@ -4060,7 +4060,8 @@ async function startServer() {
   // Register with cAPI on boot as the secondary edge gateway
   try {
     console.log("[Abide] Registering presence and telemetry with cAPI...");
-    await fetch("http://capi-container:3003/api/registry/register", {
+    const capiUrl = process.env.CAPI_INTERNAL_URL || "http://10.77.0.1:3003";
+    await fetch(`${capiUrl}/api/registry/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
