@@ -1,6 +1,10 @@
 import crypto from "crypto";
 import { CheckpointSchema } from "./validation";
-import { Pool } from "pg";
+import {
+  getCheckpointFromDatabase,
+  loadAllCheckpoints as loadAllCheckpointsFromDatabase,
+  saveCheckpoint as saveCheckpointToDatabase
+} from "../db/repositories";
 
 export interface Checkpoint {
   checkpointId: string;
@@ -15,28 +19,8 @@ export interface Checkpoint {
   timestamp: string;
 }
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL
-});
-
-pool.query(`
-  CREATE TABLE IF NOT EXISTS abide_checkpoints (
-    checkpointId VARCHAR(255) PRIMARY KEY,
-    checkpoint JSONB NOT NULL,
-    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-  );
-`).catch(err => console.error("[PG Checkpoint] Failed to initialize table:", err.message));
-
-
 export async function loadAllCheckpoints(): Promise<Checkpoint[]> {
-  if (!process.env.DATABASE_URL) return [];
-  try {
-    const res = await pool.query("SELECT checkpoint FROM abide_checkpoints ORDER BY timestamp ASC");
-    return res.rows.map(r => r.checkpoint as Checkpoint);
-  } catch (err: any) {
-    console.error("[PG Checkpoint] Failed to load checkpoints:", err.message);
-    return [];
-  }
+  return loadAllCheckpointsFromDatabase() as Promise<Checkpoint[]>;
 }
 
 export async function createCheckpoint(input: Omit<Checkpoint, "checkpointId" | "timestamp">): Promise<Checkpoint> {
@@ -56,10 +40,7 @@ export async function createCheckpoint(input: Omit<Checkpoint, "checkpointId" | 
 
   if (process.env.DATABASE_URL) {
     try {
-      await pool.query(
-        "INSERT INTO abide_checkpoints (checkpointId, checkpoint, timestamp) VALUES ($1, $2, NOW())",
-        [checkpointId, JSON.stringify(checkpoint)]
-      );
+      await saveCheckpointToDatabase(checkpoint);
     } catch (err: any) {
       console.error("[PG Checkpoint] Failed to save checkpoint:", err.message);
     }
@@ -71,12 +52,5 @@ export async function createCheckpoint(input: Omit<Checkpoint, "checkpointId" | 
 }
 
 export async function getCheckpoint(checkpointId: string): Promise<Checkpoint | null> {
-  if (!process.env.DATABASE_URL) return null;
-  try {
-    const res = await pool.query("SELECT checkpoint FROM abide_checkpoints WHERE checkpointId = $1", [checkpointId]);
-    if (res.rows.length > 0) return res.rows[0].checkpoint as Checkpoint;
-  } catch (err: any) {
-    console.error("[PG Checkpoint] Failed to get checkpoint:", err.message);
-  }
-  return null;
+  return getCheckpointFromDatabase(checkpointId) as Promise<Checkpoint | null>;
 }
