@@ -14,6 +14,7 @@ import { PlanIRSchema, CanonicalBlueprintV1Schema } from "./src/core/validation"
 import { compileSekedDirective, normalizeTelemetry, signAgentPacket, verifyAgentPacket, triageBlueprintIntakeV1 } from "./src/compiler/seked";
 import { cacheManager } from "./src/core/cache";
 import { dbConnector, x402Connector, verificationConnector, otelExporter } from "./src/core/connectors";
+import { assertDbConfiguredInProduction } from "./src/db/client";
 import { downgradeFallbackClaims } from "./src/core/fallback-downgrade";
 import { verifyCitation, VerificationStatus } from "./src/core/citationVerifier";
 import { gateMaturityClaim, TechnologyReadiness } from "./src/core/feasibilityGate";
@@ -4044,6 +4045,14 @@ app.post("/api/ide/run-stage", async (req, res) => {
 // ==========================================
 
 async function startServer() {
+  // Fail closed: ABIDE requires Postgres persistence in production (JSON fallbacks are forbidden).
+  try {
+    assertDbConfiguredInProduction();
+  } catch (err: any) {
+    console.error(`FATAL: ${err.message}`);
+    process.exit(1);
+  }
+
   // Requirement 8: Enforce robust cryptographic secrets in production
   if (process.env.NODE_ENV === "production") {
     const isAbsOrDef = (v: string | undefined, def: string) => !v || v === def;
