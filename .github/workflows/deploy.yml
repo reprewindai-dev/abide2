@@ -1,0 +1,89 @@
+name: Deploy Abide Node to Server 2
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    name: Build & Deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.HETZNER_SSH_KEY }}" > ~/.ssh/veklom-deploy
+          chmod 600 ~/.ssh/veklom-deploy
+          ssh-keyscan -H 87.99.154.166 >> ~/.ssh/known_hosts
+
+      - name: Pull, Build, and Swap on Server 2
+        run: |
+          ssh -i ~/.ssh/veklom-deploy root@87.99.154.166 << 'ENDSSH'
+          set -e
+          APP=/data/coolify/applications/xaui0t1e3bgu862hdf03361p
+          CONTAINER_NAME=abide-node
+          SHA="${{ github.sha }}"
+          IMAGE_TAG="${SHA:0:7}"
+          IMAGE=veklom-abide:production-${IMAGE_TAG}
+
+          # Since we aren't using Coolify's git source directly here, we clone/pull manually
+          if [ ! -d "$APP/source" ]; then
+            git clone https://github.com/reprewindai-dev/abide2.git "$APP/source"
+          fi
+          cd "$APP/source"
+          
+          # Reset any untracked/modified files and pull latest
+          git fetch origin
+          git reset --hard origin/main
+          git checkout --detach "$SHA"
+
+          echo "--- Building image ---"
+          docker build -t "$IMAGE" -t veklom-abide:latest .
+
+          echo "--- Recreating abide-node container ---"
+          docker stop "$CONTAINER_NAME" >/dev/null 2>&1 || true
+          docker rm "$CONTAINER_NAME" >/dev/null 2>&1 || true
+          
+          # Run with same configuration as coolify
+          docker run -d \
+            --name "$CONTAINER_NAME" \
+            --network coolify \
+            --restart unless-stopped \
+            --env-file "$APP/.env" \
+            --label traefik.enable=true \
+            --label "traefik.http.routers.http-0-xaui0t1e3bgu862hdf03361p.entrypoints=http" \
+            --label "traefik.http.routers.http-0-xaui0t1e3bgu862hdf03361p.rule=Host(\`abide.veklom.com\`)" \
+            --label "traefik.http.routers.http-0-xaui0t1e3bgu862hdf03361p.service=http-0-xaui0t1e3bgu862hdf03361p" \
+            --label "traefik.http.services.http-0-xaui0t1e3bgu862hdf03361p.loadbalancer.server.port=3009" \
+            "$IMAGE"
+
+          echo "--- Waiting for container health ---"
+          sleep 5
+          STATUS=$(docker inspect "$CONTAINER_NAME" --format '{{.State.Status}}')
+          if [ "$STATUS" = "running" ]; then
+            echo "$CONTAINER_NAME is running successfully"
+          else
+            echo "Container failed to start. Status: $STATUS"
+            exit 1
+          fi
+          ENDSSH
+
+      - name: Verify Production Health
+        run: |
+          sleep 10
+          for i in 1 2 3 4; do
+            HTTP=$(curl -sk https://abide.veklom.com -o /dev/null -w '%{http_code}')
+            if [ "$HTTP" = "200" ] || [ "$HTTP" = "404" ]; then
+              echo "abide.veklom.com is up (attempt $i)"
+              exit 0
+            fi
+            echo "Attempt $i: got $HTTP, retrying..."
+            sleep 5
+          done
+          echo "HEALTH CHECK FAILED after 4 attempts"
+          exit 1
