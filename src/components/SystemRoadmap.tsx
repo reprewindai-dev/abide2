@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Clock, CheckSquare, Square, ShieldCheck, Cpu, Database, Zap } from "lucide-react";
 
 export const SystemRoadmap: React.FC = () => {
@@ -87,9 +87,14 @@ export const SystemRoadmap: React.FC = () => {
   };
 
   // Overall statistics
-  const totalTasks = phases.reduce((acc, p) => acc + p.tasks.length, 0);
-  const completedTasks = phases.reduce((acc, p) => acc + p.tasks.filter(t => t.done).length, 0);
-  const overallProgress = Math.round((completedTasks / totalTasks) * 100);
+  // ⚡ Bolt Optimization: Memoized overall statistics calculations to prevent O(N) array traversals on every render.
+  const { totalTasks, completedTasks, overallProgress } = useMemo(() => {
+    const total = phases.reduce((acc, p) => acc + p.tasks.length, 0);
+    const completed = phases.reduce((acc, p) => acc + p.tasks.filter(t => t.done).length, 0);
+    const progress = total === 0 ? 0 : Math.round((completed / total) * 100);
+
+    return { totalTasks: total, completedTasks: completed, overallProgress: progress };
+  }, [phases]);
 
   return (
     <div className="space-y-6 animate-fadeIn text-[#E0E0E0]">
