@@ -514,6 +514,10 @@ export default function CapabilityGraphComponent({ companyGraph, capabilities, k
     return { color, extraLabel };
   };
 
+  // ⚡ Bolt: Replace O(N^2) array search with O(N) hash map lookup
+  // Pre-computes the nodes dictionary to avoid N^2 loop inside links mapping
+  const nodesById = useMemo(() => new Map(nodes.map(n => [n.id, n])), [nodes]);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between border-b border-[#222] pb-3">
@@ -592,8 +596,8 @@ export default function CapabilityGraphComponent({ companyGraph, capabilities, k
 
             {/* Render Links */}
             {links.map((link, i) => {
-              const src = nodes.find(n => n.id === link.source);
-              const tgt = nodes.find(n => n.id === link.target);
+              const src = nodesById.get(link.source);
+              const tgt = nodesById.get(link.target);
               if (!src || !tgt) return null;
 
               // Bezier curve calculations
