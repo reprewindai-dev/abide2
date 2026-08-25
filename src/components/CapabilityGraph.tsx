@@ -518,6 +518,18 @@ export default function CapabilityGraphComponent({ companyGraph, capabilities, k
   // Pre-computes the nodes dictionary to avoid N^2 loop inside links mapping
   const nodesById = useMemo(() => new Map(nodes.map(n => [n.id, n])), [nodes]);
 
+  // ⚡ Bolt: Pre-compute hovered related nodes to avoid O(V * E) lookup during node render
+  const hoveredRelatedNodes = useMemo(() => {
+    if (!hoveredNode) return new Set<string>();
+    const related = new Set<string>();
+    related.add(hoveredNode);
+    for (const l of links) {
+      if (l.source === hoveredNode) related.add(l.target);
+      if (l.target === hoveredNode) related.add(l.source);
+    }
+    return related;
+  }, [hoveredNode, links]);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between border-b border-[#222] pb-3">
@@ -659,9 +671,7 @@ export default function CapabilityGraphComponent({ companyGraph, capabilities, k
             {nodes.map((node) => {
               const isSelected = selectedNode?.id === node.id;
               const isHovered = hoveredNode === node.id;
-              const isRelated = hoveredNode 
-                ? (hoveredNode === node.id || links.some(l => (l.source === hoveredNode && l.target === node.id) || (l.target === hoveredNode && l.source === node.id)))
-                : false;
+              const isRelated = hoveredRelatedNodes.has(node.id);
               
               const isIlluminatedNode = illuminatedNodeIds 
                 ? illuminatedNodeIds.has(node.id)
