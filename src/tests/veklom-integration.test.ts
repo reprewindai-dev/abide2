@@ -8,7 +8,8 @@ const { app } = await import("../../server");
 // We start a mock/test server instance using our Express app to test /api/generate
 import http from "node:http";
 
-describe("Milestone 2: Veklom Adapter & Live Integration Tests", () => {
+if (process.env.RUN_INTEGRATION_TESTS === "1") {
+  describe("Milestone 2: Veklom Adapter & Live Integration Tests", () => {
   const LIVE_API_BASE = "https://api.veklom.com";
 
   it("1. Live API /api/v1/health must respond with healthy status and fresh timestamp", async () => {
@@ -136,7 +137,10 @@ describe("Milestone 2: Veklom Adapter & Live Integration Tests", () => {
     }
   });
 
-  after(() => {
-    setTimeout(() => { process.exit(0); }, 100);
+    after(() => {
+      setTimeout(() => { process.exit(0); }, 100);
+    });
   });
-});
+} else {
+  console.warn("Skipping Veklom integration tests. Set RUN_INTEGRATION_TESTS=1 to run them.");
+}

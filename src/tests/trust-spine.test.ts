@@ -1,6 +1,7 @@
 import { describe, it, after } from "node:test";
 import assert from "node:assert";
 import http from "node:http";
+import { makePristineToken, makeExpiredToken, makeMockToken } from "./helpers/testFixtures";
 import { stableStringify, calculateBlueprintHash, computeCanonicalHash, PlanStep } from "../core/plan-ir";
 import { signApprovalToken, verifyAndValidateApprovalToken, isFileModificationAuthorized, verifyTokenForPlan } from "../core/token";
 import { CanonicalBlueprintV1Schema, PlanIRSchema } from "../core/validation";
@@ -102,9 +103,7 @@ describe("Milestone 1: Real Trust Spine Regression Tests", () => {
 
   describe("3. Out-of-Scope Files Rejection", () => {
     it("should authorize allowed files and reject any other files", () => {
-      const mockToken = {
-        allowedFiles: ["src/scheduler/einstein.rs", "src/scheduler/telemetry.rs"]
-      };
+      const mockToken = makeMockToken({ allowedFiles: ["src/scheduler/einstein.rs", "src/scheduler/telemetry.rs"] });
 
       assert.strictEqual(isFileModificationAuthorized(mockToken, "src/scheduler/einstein.rs"), true);
       assert.strictEqual(isFileModificationAuthorized(mockToken, "src/scheduler/telemetry.rs"), true);
@@ -392,6 +391,7 @@ describe("Milestone 1: Real Trust Spine Regression Tests", () => {
   });
 
   after(() => {
-    setTimeout(() => { process.exit(0); }, 100);
+    // Avoid force-exiting the test runner; allow the test framework to terminate naturally.
+    // setTimeout(() => { process.exit(0); }, 100);
   });
 });

@@ -4,9 +4,10 @@ import crypto from "node:crypto";
 import { exploreTlaStateSpace, verifyPlanIRWithTla } from "../compiler/tla-adapter";
 import { enforceLane3Z3AndDegradedGuard } from "../core/m2m-verifier";
 import { PlanIR, PlanStep } from "../core/plan-ir";
+import { mockTenantIdTla } from "./helpers/testFixtures";
 
 describe("TLA+ Formal State-Space Exploration Adapter Suite", () => {
-  const mockTenantId = "tenant-tla-test";
+  const mockTenantId = mockTenantIdTla();
   let origUrl: string | undefined;
 
   beforeEach(() => {

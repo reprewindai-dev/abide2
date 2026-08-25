@@ -154,6 +154,7 @@ describe("SMT Solver: Z3 Integration Tests", () => {
   });
 
   after(() => {
-    setTimeout(() => { process.exit(0); }, 100);
+    // Avoid force-exiting the test runner; allow the test framework to terminate naturally.
+    // setTimeout(() => { process.exit(0); }, 100);
   });
 });

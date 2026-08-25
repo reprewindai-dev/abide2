@@ -4,6 +4,7 @@ import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import { PlanIR, PlanStep } from "../core/plan-ir";
+import { mockTenantIdEnterprise, makeMockResult } from "./helpers/testFixtures";
 import { 
   executeMandatoryZ3Verification, 
   executeTlaModelChecking, 
@@ -17,7 +18,7 @@ import { computeFentonWilkinsonTriage, evaluateHoverboardFeasibilityGate, classi
 import { verifyZ3TranslationCompleteness } from "../compiler/z3-adapter";
 
 describe("Enterprise Hardening: Verification & M2M Contract Regression Suite", () => {
-  const mockTenantId = "tenant-enterprise-99";
+  const mockTenantId = mockTenantIdEnterprise();
   let origUrl: string | undefined;
 
   beforeEach(() => {
@@ -136,15 +137,10 @@ describe("Enterprise Hardening: Verification & M2M Contract Regression Suite", (
   it("4. Persistent Gnomledger (PGL) Inclusion: should seal execution receipts and Merkle root anchors to persistent storage", async () => {
     const plan = createSamplePlan(3);
     const step = plan.steps[0];
-    const mockResult = {
-      stepId: step.stepId,
-      sequence: 1,
-      capability: step.capability,
-      status: "SUCCESS" as const,
-      output: { settled: true },
-      executedAt: new Date().toISOString(),
-      resultHash: crypto.createHash("sha256").update("settled").digest("hex")
-    };
+    const mockResult = makeMockResult(step.stepId, {
+      resultHash: crypto.createHash("sha256").update("settled").digest("hex"),
+      capability: step.capability
+    });
 
     const receipt = sealStepOnLedger(plan.planId, mockResult);
     await persistLane3PglAnchor(plan, step, receipt);
@@ -272,6 +268,7 @@ describe("Enterprise Hardening: Verification & M2M Contract Regression Suite", (
   });
 
   after(() => {
-    setTimeout(() => { process.exit(0); }, 100);
+    // Avoid force-exiting the test runner; allow the test framework to terminate naturally.
+    // setTimeout(() => { process.exit(0); }, 100);
   });
 });

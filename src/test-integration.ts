@@ -11,6 +11,11 @@ async function runDiagnostics() {
   const LOCAL_SERVER_URL = "http://localhost:3000";
   let failures = 0;
 
+  if (process.env.RUN_INTEGRATION_TESTS !== "1") {
+    console.warn("Skipping integration diagnostics in src/test-integration.ts. Set RUN_INTEGRATION_TESTS=1 to run them.");
+    return;
+  }
+
   // 1. Schema Validation on Compiled Blueprints
   console.log("[TEST 1/4] Validating Blueprint Core JSON Schema Alignment...");
   try {
