@@ -425,6 +425,23 @@ export default function CapabilityGraphComponent({ companyGraph, capabilities, k
   }
 
   // Product Offering Cascade highlighting lookup
+  // ⚡ Bolt: Replace O(E) array search with O(1) hash map lookup for node adjacency
+  const adjacencyMap = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    links.forEach(l => {
+      if (!map.has(l.source)) map.set(l.source, new Set());
+      if (!map.has(l.target)) map.set(l.target, new Set());
+      map.get(l.source)!.add(l.target);
+      map.get(l.target)!.add(l.source);
+    });
+    return map;
+  }, [links]);
+
+  // ⚡ Bolt: Replace O(N) array search with O(1) hash map lookup for capabilities
+  const combinedCapabilitiesById = useMemo(() => {
+    return new Map(combinedCapabilities.map(c => [c.id, c]));
+  }, [combinedCapabilities]);
+
   const illuminatedNodeIds = useMemo(() => {
     if (!highlightedProduct) return null;
     const ids = new Set<string>();
@@ -464,7 +481,7 @@ export default function CapabilityGraphComponent({ companyGraph, capabilities, k
       return { color: "#EF4444", extraLabel: "HALTED" };
     }
 
-    const cap = combinedCapabilities.find(c => c.id === node.id);
+    const cap = combinedCapabilitiesById.get(node.id);
     if (!cap) return { color: node.color, extraLabel: "" };
 
     let color = node.color;
@@ -660,7 +677,7 @@ export default function CapabilityGraphComponent({ companyGraph, capabilities, k
               const isSelected = selectedNode?.id === node.id;
               const isHovered = hoveredNode === node.id;
               const isRelated = hoveredNode 
-                ? (hoveredNode === node.id || links.some(l => (l.source === hoveredNode && l.target === node.id) || (l.target === hoveredNode && l.source === node.id)))
+                ? (hoveredNode === node.id || !!adjacencyMap.get(hoveredNode)?.has(node.id))
                 : false;
               
               const isIlluminatedNode = illuminatedNodeIds 
