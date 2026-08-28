@@ -790,21 +790,32 @@ export default function BuildExecutionAttestation({ blueprint, userEmail }: Buil
             </div>
 
             {/* Render a list of capabilities matching current mapping selection */}
-            {mappings
-              .filter((m, i, self) => self.findIndex(x => x.capabilityId === m.capabilityId) === i) // Unique capabilities
-              .filter(m => {
-                if (mapperFilterTarget === "all") return true;
-                return m.target === mapperFilterTarget;
-              })
-              .map((m) => {
-                const isActive = activeMapping.capabilityId === m.capabilityId;
-                const isHovered = hoveredMappingId && mappings.find(x => x.id === hoveredMappingId)?.capabilityId === m.capabilityId;
-                const realCap = blueprint.capabilities?.find(c => c.id === m.capabilityId);
-                const capName = realCap?.name || m.defaultCapName;
-                const capPurpose = realCap?.purpose || m.purpose;
+            {(() => {
+              // ⚡ Bolt Optimization: Prevent O(N^2) lookups on every render by resolving hovered item and capability maps once
+              const hoveredMapping = hoveredMappingId ? mappings.find(x => x.id === hoveredMappingId) : null;
+              const capabilitiesById = new Map((blueprint.capabilities || []).map(c => [c.id, c]));
+              const seenCapIds = new Set();
 
-                return (
-                  <div
+              return mappings
+                .filter((m) => {
+                  // O(1) deduplication instead of O(N^2) findIndex
+                  if (seenCapIds.has(m.capabilityId)) return false;
+                  seenCapIds.add(m.capabilityId);
+                  return true;
+                })
+                .filter(m => {
+                  if (mapperFilterTarget === "all") return true;
+                  return m.target === mapperFilterTarget;
+                })
+                .map((m) => {
+                  const isActive = activeMapping.capabilityId === m.capabilityId;
+                  const isHovered = hoveredMapping && hoveredMapping.capabilityId === m.capabilityId;
+                  const realCap = capabilitiesById.get(m.capabilityId);
+                  const capName = realCap?.name || m.defaultCapName;
+                  const capPurpose = realCap?.purpose || m.purpose;
+
+                  return (
+                    <div
                     key={m.capabilityId}
                     className={`p-3 border text-left transition-all relative rounded-none ${
                       isActive
@@ -839,8 +850,9 @@ export default function BuildExecutionAttestation({ blueprint, userEmail }: Buil
                       <div className="absolute left-0 top-0 bottom-0 w-1 bg-emerald-500" />
                     )}
                   </div>
-                );
-              })}
+                  );
+                });
+            })()}
           </div>
 
         </div>
