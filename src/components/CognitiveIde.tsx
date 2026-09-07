@@ -895,6 +895,9 @@ export async function executeCapability(payload: any) {
     );
   }, [graphNodes, ontologySearch]);
 
+  // ⚡ Bolt Optimization: Prevent O(N^2) lookups on every render by resolving graphNodes map once
+  const graphNodesById = useMemo(() => new Map(graphNodes.map(n => [n.id, n])), [graphNodes]);
+
   const handleTraceSovereigntyChain = () => {
     // Traverse: tenant-alpha -> dataclass-confidential -> policy-sovereignty -> region-enclave
     const chain = ["tenant-alpha", "dataclass-confidential", "policy-sovereignty", "region-enclave"];

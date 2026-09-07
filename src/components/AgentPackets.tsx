@@ -432,7 +432,7 @@ ${pkt.files.map(f => `- ${f}`).join("\n")}
 ${pkt.contracts}
 
 #### 5. ALLOWED SYSTEM DEPENDENCIES
-${pkt.dependencies.map(d => `- \`${typeof d === 'string' ? d : `${d.name}@${d.version}`}\``).join("\n")}
+${pkt.dependencies.map((d: any) => `- \`${typeof d === 'string' ? d : `${d.name}@${d.version}`}\``).join("\n")}
 
 #### 6. REQUIRED TEST COVERAGE MATRIX
 ${pkt.tests.map(t => `- ${t}`).join("\n")}
