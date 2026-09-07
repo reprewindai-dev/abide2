@@ -878,9 +878,14 @@ export async function executeCapability(payload: any) {
   const [ontologySearch, setOntologySearch] = useState("");
   const [highlightedPath, setHighlightedPath] = useState<string[]>([]);
 
+  // ⚡ Bolt Optimization: Replace O(N^2) search with O(1) hash map lookup
+  const graphNodesById = useMemo(() => {
+    return new Map(graphNodes.map(n => [n.id, n]));
+  }, [graphNodes]);
+
   const selectedGraphNode = useMemo(() => {
-    return graphNodes.find(n => n.id === selectedGraphNodeId) || graphNodes[0];
-  }, [graphNodes, selectedGraphNodeId]);
+    return graphNodesById.get(selectedGraphNodeId) || graphNodes[0];
+  }, [graphNodesById, selectedGraphNodeId, graphNodes]);
 
   const filteredGraphNodes = useMemo(() => {
     if (!ontologySearch) return graphNodes;
@@ -2742,7 +2747,7 @@ export async function executeCapability(payload: any) {
                         <span className="text-emerald-400 font-bold uppercase text-[8px] block mb-1">Active Traversal Path:</span>
                         <div className="flex flex-wrap items-center gap-1">
                           {highlightedPath.map((pathId, idx) => {
-                            const node = graphNodes.find(n => n.id === pathId);
+                            const node = graphNodesById.get(pathId);
                             return (
                               <React.Fragment key={pathId}>
                                 <span className="bg-emerald-500/10 text-emerald-400 px-1 py-0.5 border border-emerald-500/20">
@@ -2814,7 +2819,7 @@ export async function executeCapability(payload: any) {
                         .filter(l => l.source === selectedGraphNodeId || l.target === selectedGraphNodeId)
                         .map((link, idx) => {
                           const otherNodeId = link.source === selectedGraphNodeId ? link.target : link.source;
-                          const otherNode = graphNodes.find(n => n.id === otherNodeId);
+                          const otherNode = graphNodesById.get(otherNodeId);
                           return (
                             <div key={idx} className="truncate">
                               {link.source === selectedGraphNodeId ? "→" : "←"} <span className="text-white">{link.predicate}</span>: {otherNode?.label}
