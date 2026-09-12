@@ -346,9 +346,14 @@ export default function CapabilityGraphComponent({ companyGraph, capabilities, k
     });
   }
 
+  // ⚡ Bolt: Pre-compute capabilityNodes Map for O(1) lookups
+  // This must be done inside a regular variable assignment since we are in the middle of standard logic
+  // (after useMemo calls for nodes, but before rendering).
+  const capabilityNodesById = new Map<string, any>(capabilityNodes.map(cn => [cn.id, cn]));
+
   // B. Link Product -> Capability (Heuristic mapping based on domain context or sequential distribution)
   (combinedCapabilities || []).forEach((cap, idx) => {
-    const capNode = capabilityNodes.find(cn => cn.id === cap.id);
+    const capNode = capabilityNodesById.get(cap.id);
     if (capNode) {
       let matchedProd = null;
       if (cap.owner === "Developer Sub-agent" && cap.canonicalDataDomain) {
@@ -379,11 +384,12 @@ export default function CapabilityGraphComponent({ companyGraph, capabilities, k
 
   // C. Link Capability -> Canonical System
   (combinedCapabilities || []).forEach(cap => {
-    const capNode = capabilityNodes.find(cn => cn.id === cap.id);
+    const capNode = capabilityNodesById.get(cap.id);
     if (capNode) {
       const targetSysName = cap.canonicalServiceSystem || cap.canonicalSystem;
       if (targetSysName) {
         const sysNode = systemNodes.find(sn => sn.rawId.toLowerCase().includes(targetSysName.toLowerCase()) || targetSysName.toLowerCase().includes(sn.rawId.toLowerCase()));
+
         if (sysNode) {
           links.push({ source: capNode.id, target: sysNode.id });
         } else if (systemNodes.length > 0) {
@@ -400,10 +406,10 @@ export default function CapabilityGraphComponent({ companyGraph, capabilities, k
 
   // D. Link Inter-Capability dependencies
   (combinedCapabilities || []).forEach(cap => {
-    const capNode = capabilityNodes.find(cn => cn.id === cap.id);
+    const capNode = capabilityNodesById.get(cap.id);
     if (capNode && cap.dependencies) {
       cap.dependencies.forEach(depId => {
-        const depNode = capabilityNodes.find(cn => cn.id === depId);
+        const depNode = capabilityNodesById.get(depId);
         if (depNode) {
           links.push({ source: depNode.id, target: capNode.id, dashed: true });
         }
