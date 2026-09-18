@@ -319,110 +319,119 @@ export default function CapabilityGraphComponent({ companyGraph, capabilities, k
   ];
 
   // Dynamic link generation linking domain to product, product to capability, and capability to system
-  const links: { source: string; target: string; dashed?: boolean }[] = [];
+  const links: { source: string; target: string; dashed?: boolean }[] = useMemo(() => {
+    const newLinks: { source: string; target: string; dashed?: boolean }[] = [];
 
-  // A. Link Domain -> Product
-  (companyGraph?.products || []).forEach(prod => {
-    const pNode = productNodes.find(pn => pn.rawId === prod.name);
-    if (pNode) {
-      const dNode = domainNodes.find(dn => dn.rawId === prod.domain);
-      if (dNode) {
-        links.push({ source: dNode.id, target: pNode.id });
+    // Pre-compute maps for O(1) lookups instead of O(N) Array.find
+    const productNodesMap = new Map(productNodes.map(pn => [pn.rawId, pn]));
+    const domainNodesMap = new Map(domainNodes.map(dn => [dn.rawId, dn]));
+    const capabilityNodesMap = new Map<string, any>(capabilityNodes.map((cn: any) => [cn.id, cn]));
+
+    // A. Link Domain -> Product
+    (companyGraph?.products || []).forEach(prod => {
+      const pNode = productNodesMap.get(prod.name);
+      if (pNode) {
+        const dNode = domainNodesMap.get(prod.domain);
+        if (dNode) {
+          newLinks.push({ source: dNode.id, target: pNode.id });
+        }
       }
-    }
-  });
+    });
 
-  if (links.length === 0) {
-    (companyGraph?.domains || []).forEach(dom => {
-      const dNode = domainNodes.find(dn => dn.rawId === dom.name);
-      if (dNode && dom.products) {
-        dom.products.forEach(pName => {
-          const pNode = productNodes.find(pn => pn.rawId === pName);
-          if (pNode) {
-            links.push({ source: dNode.id, target: pNode.id });
+    if (newLinks.length === 0) {
+      (companyGraph?.domains || []).forEach(dom => {
+        const dNode = domainNodesMap.get(dom.name);
+        if (dNode && dom.products) {
+          dom.products.forEach(pName => {
+            const pNode = productNodesMap.get(pName);
+            if (pNode) {
+              newLinks.push({ source: dNode.id, target: pNode.id });
+            }
+          });
+        }
+      });
+    }
+
+    // B. Link Product -> Capability (Heuristic mapping based on domain context or sequential distribution)
+    (combinedCapabilities || []).forEach((cap, idx) => {
+      const capNode = capabilityNodesMap.get(cap.id);
+      if (capNode) {
+        let matchedProd = null;
+        if (cap.owner === "Developer Sub-agent" && cap.canonicalDataDomain) {
+          matchedProd = productNodesMap.get(cap.canonicalDataDomain);
+        }
+        if (!matchedProd) {
+          matchedProd = productNodes.find(pn => {
+            const prodLower = pn.rawId.toLowerCase();
+            const capLower = cap.id.toLowerCase();
+            return prodLower.includes("os") && (capLower.includes("session") || capLower.includes("route") || capLower.includes("eligibility") || capLower.includes("govern"));
+          });
+        }
+        if (!matchedProd) {
+          matchedProd = productNodes.find(pn => {
+            const prodLower = pn.rawId.toLowerCase();
+            const capLower = cap.id.toLowerCase();
+            return prodLower.includes("escrow") && (capLower.includes("settle") || capLower.includes("evidence") || capLower.includes("dns") || capLower.includes("verify") || capLower.includes("mint"));
+          });
+        }
+        if (!matchedProd && productNodes.length > 0) {
+          matchedProd = productNodes[idx % productNodes.length];
+        }
+        if (matchedProd) {
+          newLinks.push({ source: matchedProd.id, target: capNode.id });
+        }
+      }
+    });
+
+    // C. Link Capability -> Canonical System
+    (combinedCapabilities || []).forEach(cap => {
+      const capNode = capabilityNodesMap.get(cap.id);
+      if (capNode) {
+        const targetSysName = cap.canonicalServiceSystem || cap.canonicalSystem;
+        if (targetSysName) {
+          const sysNode = systemNodes.find(sn => sn.rawId.toLowerCase().includes(targetSysName.toLowerCase()) || targetSysName.toLowerCase().includes(sn.rawId.toLowerCase()));
+          if (sysNode) {
+            newLinks.push({ source: capNode.id, target: sysNode.id });
+          } else if (systemNodes.length > 0) {
+            const fallbackSys = systemNodes.find(sn => cap.id.includes("session") || cap.id.includes("eligibility") ? sn.rawId.includes("Router") : sn.rawId.includes("Ledger"));
+            if (fallbackSys) {
+              newLinks.push({ source: capNode.id, target: fallbackSys.id });
+            } else {
+              newLinks.push({ source: capNode.id, target: systemNodes[0].id });
+            }
+          }
+        }
+      }
+    });
+
+    // D. Link Inter-Capability dependencies
+    (combinedCapabilities || []).forEach(cap => {
+      const capNode = capabilityNodesMap.get(cap.id);
+      if (capNode && cap.dependencies) {
+        cap.dependencies.forEach(depId => {
+          const depNode = capabilityNodesMap.get(depId);
+          if (depNode) {
+            newLinks.push({ source: depNode.id, target: capNode.id, dashed: true });
           }
         });
       }
     });
-  }
 
-  // B. Link Product -> Capability (Heuristic mapping based on domain context or sequential distribution)
-  (combinedCapabilities || []).forEach((cap, idx) => {
-    const capNode = capabilityNodes.find(cn => cn.id === cap.id);
-    if (capNode) {
-      let matchedProd = null;
-      if (cap.owner === "Developer Sub-agent" && cap.canonicalDataDomain) {
-        matchedProd = productNodes.find(pn => pn.rawId === cap.canonicalDataDomain);
+    // E. Link System -> Abide Micro-Nodes
+    systemNodes.forEach(sn => {
+      if (sn.rawId.includes("Router")) {
+        newLinks.push({ source: sn.id, target: "abide-node-b" });
+      } else if (sn.rawId.includes("Ledger") || sn.rawId.includes("Gnomledger")) {
+        newLinks.push({ source: sn.id, target: "abide-node-c" });
       }
-      if (!matchedProd) {
-        matchedProd = productNodes.find(pn => {
-          const prodLower = pn.rawId.toLowerCase();
-          const capLower = cap.id.toLowerCase();
-          return prodLower.includes("os") && (capLower.includes("session") || capLower.includes("route") || capLower.includes("eligibility") || capLower.includes("govern"));
-        });
-      }
-      if (!matchedProd) {
-        matchedProd = productNodes.find(pn => {
-          const prodLower = pn.rawId.toLowerCase();
-          const capLower = cap.id.toLowerCase();
-          return prodLower.includes("escrow") && (capLower.includes("settle") || capLower.includes("evidence") || capLower.includes("dns") || capLower.includes("verify") || capLower.includes("mint"));
-        });
-      }
-      if (!matchedProd && productNodes.length > 0) {
-        matchedProd = productNodes[idx % productNodes.length];
-      }
-      if (matchedProd) {
-        links.push({ source: matchedProd.id, target: capNode.id });
-      }
+    });
+    // Connect Node A (Secure Enclave) to the first system (or any system containing Security or Router)
+    if (systemNodes[0]) {
+      newLinks.push({ source: systemNodes[0].id, target: "abide-node-a" });
     }
-  });
 
-  // C. Link Capability -> Canonical System
-  (combinedCapabilities || []).forEach(cap => {
-    const capNode = capabilityNodes.find(cn => cn.id === cap.id);
-    if (capNode) {
-      const targetSysName = cap.canonicalServiceSystem || cap.canonicalSystem;
-      if (targetSysName) {
-        const sysNode = systemNodes.find(sn => sn.rawId.toLowerCase().includes(targetSysName.toLowerCase()) || targetSysName.toLowerCase().includes(sn.rawId.toLowerCase()));
-        if (sysNode) {
-          links.push({ source: capNode.id, target: sysNode.id });
-        } else if (systemNodes.length > 0) {
-          const fallbackSys = systemNodes.find(sn => cap.id.includes("session") || cap.id.includes("eligibility") ? sn.rawId.includes("Router") : sn.rawId.includes("Ledger"));
-          if (fallbackSys) {
-            links.push({ source: capNode.id, target: fallbackSys.id });
-          } else {
-            links.push({ source: capNode.id, target: systemNodes[0].id });
-          }
-        }
-      }
-    }
-  });
-
-  // D. Link Inter-Capability dependencies
-  (combinedCapabilities || []).forEach(cap => {
-    const capNode = capabilityNodes.find(cn => cn.id === cap.id);
-    if (capNode && cap.dependencies) {
-      cap.dependencies.forEach(depId => {
-        const depNode = capabilityNodes.find(cn => cn.id === depId);
-        if (depNode) {
-          links.push({ source: depNode.id, target: capNode.id, dashed: true });
-        }
-      });
-    }
-  });
-
-  // E. Link System -> Abide Micro-Nodes
-  systemNodes.forEach(sn => {
-    if (sn.rawId.includes("Router")) {
-      links.push({ source: sn.id, target: "abide-node-b" });
-    } else if (sn.rawId.includes("Ledger") || sn.rawId.includes("Gnomledger")) {
-      links.push({ source: sn.id, target: "abide-node-c" });
-    }
-  });
-  // Connect Node A (Secure Enclave) to the first system (or any system containing Security or Router)
-  if (systemNodes[0]) {
-    links.push({ source: systemNodes[0].id, target: "abide-node-a" });
-  }
+    return newLinks;
+  }, [companyGraph, combinedCapabilities, productNodes, domainNodes, capabilityNodes, systemNodes]);
 
   // Product Offering Cascade highlighting lookup
   // ⚡ Bolt: Replace O(E) array search with O(1) hash map lookup for node adjacency
@@ -446,6 +455,7 @@ export default function CapabilityGraphComponent({ companyGraph, capabilities, k
     if (!highlightedProduct) return null;
     const ids = new Set<string>();
     
+    // ⚡ Bolt: Replace O(N) array search with O(1) hash map lookups here as well
     const pNode = productNodes.find(pn => pn.rawId === highlightedProduct);
     if (pNode) {
       ids.add(pNode.id);
@@ -456,20 +466,20 @@ export default function CapabilityGraphComponent({ companyGraph, capabilities, k
         if (dNode) ids.add(dNode.id);
       }
       
-      links.forEach(l => {
-        if (l.source === pNode.id) {
-          ids.add(l.target);
-          
-          links.forEach(l2 => {
-            if (l2.source === l.target) {
-              ids.add(l2.target);
-            }
-          });
-        }
-      });
+      // ⚡ Bolt: Use O(1) adjacency map lookups instead of nested array loops (O(E^2) -> O(1))
+      const immediateNeighbors = adjacencyMap.get(pNode.id);
+      if (immediateNeighbors) {
+        immediateNeighbors.forEach(neighborId => {
+          ids.add(neighborId);
+          const secondDegreeNeighbors = adjacencyMap.get(neighborId);
+          if (secondDegreeNeighbors) {
+            secondDegreeNeighbors.forEach(n2 => ids.add(n2));
+          }
+        });
+      }
     }
     return ids;
-  }, [highlightedProduct, productNodes, domainNodes, companyGraph, links]);
+  }, [highlightedProduct, productNodes, domainNodes, companyGraph, adjacencyMap]);
 
   // Dynamic node color and badge calculation helper
   const getNodeVisuals = (node: any) => {

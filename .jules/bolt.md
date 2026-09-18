@@ -13,3 +13,7 @@
 ## 2026-09-07 - SVG Graph Node Lookups in React Mappings
 **Learning:** Found multiple instances of `O(N^2)` array operations in `CognitiveIde.tsx` (e.g., using `.find` inside a `.map` loop to resolve capability IDs and hover states).
 **Action:** Use `Set` for `O(1)` array deduplication and pre-compute `Map` dictionaries for cross-array lookups before mapping over data structures to prevent blocking the main thread during React re-renders.
+
+## 2023-10-24 - [Avoid O(E^2) Array Searches in Graph Node Illumination]
+**Learning:** Found a major performance bottleneck where `illuminatedNodeIds` continuously triggered O(E^2) array iterations nested within `links.forEach()` to traverse graph nodes. Additionally, graph `links` were recalculated on every render with O(N) `.find()` searches, causing severe main thread blocking for complex `CapabilityGraph` instances.
+**Action:** Always prefer `Map` dictionaries mapped by key when joining domain arrays. Using pre-computed Map dictionaries and converting edge iterations to O(1) adjacency hash map lookups drastically improves graph performance on interactive visualizations.
