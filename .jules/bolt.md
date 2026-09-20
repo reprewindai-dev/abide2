@@ -13,3 +13,6 @@
 ## 2026-09-07 - SVG Graph Node Lookups in React Mappings
 **Learning:** Found multiple instances of `O(N^2)` array operations in `CognitiveIde.tsx` (e.g., using `.find` inside a `.map` loop to resolve capability IDs and hover states).
 **Action:** Use `Set` for `O(1)` array deduplication and pre-compute `Map` dictionaries for cross-array lookups before mapping over data structures to prevent blocking the main thread during React re-renders.
+## 2026-10-25 - SVG Graph Node Lookups Optimization
+**Learning:** Found an $O(N^2)$ performance bottleneck in `CapabilityGraph.tsx` where `.find` array searches were used for capability nodes inside the `links.forEach` rendering pipeline.
+**Action:** When rendering highly-connected graphs with D3 or custom SVG implementations, always pre-compute a dictionary (`Map`) outside the nested mapping flow to achieve $O(1)$ node lookups instead of $O(N)$.

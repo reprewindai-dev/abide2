@@ -321,11 +321,16 @@ export default function CapabilityGraphComponent({ companyGraph, capabilities, k
   // Dynamic link generation linking domain to product, product to capability, and capability to system
   const links: { source: string; target: string; dashed?: boolean }[] = [];
 
+  // ⚡ Bolt: Pre-compute Map dictionaries for O(1) cross-array lookups to prevent O(N^2) blocking
+  const productNodesByRawId = new Map<string, any>(productNodes.map(pn => [pn.rawId, pn]));
+  const domainNodesByRawId = new Map<string, any>(domainNodes.map(dn => [dn.rawId, dn]));
+  const capabilityNodesById = new Map<string, any>(capabilityNodes.map(cn => [cn.id, cn]));
+
   // A. Link Domain -> Product
   (companyGraph?.products || []).forEach(prod => {
-    const pNode = productNodes.find(pn => pn.rawId === prod.name);
+    const pNode = productNodesByRawId.get(prod.name);
     if (pNode) {
-      const dNode = domainNodes.find(dn => dn.rawId === prod.domain);
+      const dNode = domainNodesByRawId.get(prod.domain);
       if (dNode) {
         links.push({ source: dNode.id, target: pNode.id });
       }
@@ -334,10 +339,10 @@ export default function CapabilityGraphComponent({ companyGraph, capabilities, k
 
   if (links.length === 0) {
     (companyGraph?.domains || []).forEach(dom => {
-      const dNode = domainNodes.find(dn => dn.rawId === dom.name);
+      const dNode = domainNodesByRawId.get(dom.name);
       if (dNode && dom.products) {
         dom.products.forEach(pName => {
-          const pNode = productNodes.find(pn => pn.rawId === pName);
+          const pNode = productNodesByRawId.get(pName);
           if (pNode) {
             links.push({ source: dNode.id, target: pNode.id });
           }
@@ -348,11 +353,11 @@ export default function CapabilityGraphComponent({ companyGraph, capabilities, k
 
   // B. Link Product -> Capability (Heuristic mapping based on domain context or sequential distribution)
   (combinedCapabilities || []).forEach((cap, idx) => {
-    const capNode = capabilityNodes.find(cn => cn.id === cap.id);
+    const capNode = capabilityNodesById.get(cap.id);
     if (capNode) {
       let matchedProd = null;
       if (cap.owner === "Developer Sub-agent" && cap.canonicalDataDomain) {
-        matchedProd = productNodes.find(pn => pn.rawId === cap.canonicalDataDomain);
+        matchedProd = productNodesByRawId.get(cap.canonicalDataDomain);
       }
       if (!matchedProd) {
         matchedProd = productNodes.find(pn => {
@@ -379,7 +384,7 @@ export default function CapabilityGraphComponent({ companyGraph, capabilities, k
 
   // C. Link Capability -> Canonical System
   (combinedCapabilities || []).forEach(cap => {
-    const capNode = capabilityNodes.find(cn => cn.id === cap.id);
+    const capNode = capabilityNodesById.get(cap.id);
     if (capNode) {
       const targetSysName = cap.canonicalServiceSystem || cap.canonicalSystem;
       if (targetSysName) {
@@ -400,10 +405,10 @@ export default function CapabilityGraphComponent({ companyGraph, capabilities, k
 
   // D. Link Inter-Capability dependencies
   (combinedCapabilities || []).forEach(cap => {
-    const capNode = capabilityNodes.find(cn => cn.id === cap.id);
+    const capNode = capabilityNodesById.get(cap.id);
     if (capNode && cap.dependencies) {
       cap.dependencies.forEach(depId => {
-        const depNode = capabilityNodes.find(cn => cn.id === depId);
+        const depNode = capabilityNodesById.get(depId);
         if (depNode) {
           links.push({ source: depNode.id, target: capNode.id, dashed: true });
         }
@@ -446,13 +451,13 @@ export default function CapabilityGraphComponent({ companyGraph, capabilities, k
     if (!highlightedProduct) return null;
     const ids = new Set<string>();
     
-    const pNode = productNodes.find(pn => pn.rawId === highlightedProduct);
+    const pNode = productNodesByRawId.get(highlightedProduct);
     if (pNode) {
       ids.add(pNode.id);
       
       const prodObj = companyGraph?.products.find(p => p.name === highlightedProduct);
       if (prodObj) {
-        const dNode = domainNodes.find(dn => dn.rawId === prodObj.domain);
+        const dNode = domainNodesByRawId.get(prodObj.domain);
         if (dNode) ids.add(dNode.id);
       }
       
