@@ -13,3 +13,7 @@
 ## 2026-09-07 - SVG Graph Node Lookups in React Mappings
 **Learning:** Found multiple instances of `O(N^2)` array operations in `CognitiveIde.tsx` (e.g., using `.find` inside a `.map` loop to resolve capability IDs and hover states).
 **Action:** Use `Set` for `O(1)` array deduplication and pre-compute `Map` dictionaries for cross-array lookups before mapping over data structures to prevent blocking the main thread during React re-renders.
+
+## 2023-10-26 - SVG Graph Node Lookups in React Mappings
+**Learning:** Encountered `O(N^2)` array operations inside React component rendering (`src/components/CapabilityGraph.tsx`) where multiple `.find()` operations were used repeatedly during graph linking. Wait, this was already noted.
+**Action:** When pre-computing maps in React hooks, remember to include the arrays in the dependency array (e.g., `useMemo(() => new Map(...), [array])`), and update the dependency array of any downstream hooks that use these new maps to avoid stale closures.
