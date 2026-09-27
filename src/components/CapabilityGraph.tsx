@@ -318,14 +318,25 @@ export default function CapabilityGraphComponent({ companyGraph, capabilities, k
     ...abideNodes,
   ];
 
+  // ⚡ Bolt: Use Map dictionaries for O(1) node lookups instead of nested array `.find()` in rendering loops
+  // This avoids O(N^2) time complexity during dependency link generation.
+  // Note: We use capabilityNodeById for graph node mappings, not the underlying capability data
+  const nodeMaps = useMemo(() => {
+    const productByRawId = new Map(productNodes.map(pn => [pn.rawId, pn]));
+    const domainByRawId = new Map(domainNodes.map(dn => [dn.rawId, dn]));
+    const capabilityNodeById = new Map(capabilityNodes.map(cn => [cn.id, cn]));
+    const systemByRawId = new Map(systemNodes.map(sn => [sn.rawId, sn]));
+    return { productByRawId, domainByRawId, capabilityNodeById, systemByRawId };
+  }, [productNodes, domainNodes, capabilityNodes, systemNodes]);
+
   // Dynamic link generation linking domain to product, product to capability, and capability to system
   const links: { source: string; target: string; dashed?: boolean }[] = [];
 
   // A. Link Domain -> Product
   (companyGraph?.products || []).forEach(prod => {
-    const pNode = productNodes.find(pn => pn.rawId === prod.name);
+    const pNode = nodeMaps.productByRawId.get(prod.name);
     if (pNode) {
-      const dNode = domainNodes.find(dn => dn.rawId === prod.domain);
+      const dNode = nodeMaps.domainByRawId.get(prod.domain);
       if (dNode) {
         links.push({ source: dNode.id, target: pNode.id });
       }
@@ -334,10 +345,10 @@ export default function CapabilityGraphComponent({ companyGraph, capabilities, k
 
   if (links.length === 0) {
     (companyGraph?.domains || []).forEach(dom => {
-      const dNode = domainNodes.find(dn => dn.rawId === dom.name);
+      const dNode = nodeMaps.domainByRawId.get(dom.name);
       if (dNode && dom.products) {
         dom.products.forEach(pName => {
-          const pNode = productNodes.find(pn => pn.rawId === pName);
+          const pNode = nodeMaps.productByRawId.get(pName);
           if (pNode) {
             links.push({ source: dNode.id, target: pNode.id });
           }
@@ -348,11 +359,11 @@ export default function CapabilityGraphComponent({ companyGraph, capabilities, k
 
   // B. Link Product -> Capability (Heuristic mapping based on domain context or sequential distribution)
   (combinedCapabilities || []).forEach((cap, idx) => {
-    const capNode = capabilityNodes.find(cn => cn.id === cap.id);
+    const capNode = nodeMaps.capabilityNodeById.get(cap.id);
     if (capNode) {
       let matchedProd = null;
       if (cap.owner === "Developer Sub-agent" && cap.canonicalDataDomain) {
-        matchedProd = productNodes.find(pn => pn.rawId === cap.canonicalDataDomain);
+        matchedProd = nodeMaps.productByRawId.get(cap.canonicalDataDomain);
       }
       if (!matchedProd) {
         matchedProd = productNodes.find(pn => {
@@ -379,11 +390,12 @@ export default function CapabilityGraphComponent({ companyGraph, capabilities, k
 
   // C. Link Capability -> Canonical System
   (combinedCapabilities || []).forEach(cap => {
-    const capNode = capabilityNodes.find(cn => cn.id === cap.id);
+    const capNode = nodeMaps.capabilityNodeById.get(cap.id);
     if (capNode) {
       const targetSysName = cap.canonicalServiceSystem || cap.canonicalSystem;
       if (targetSysName) {
-        const sysNode = systemNodes.find(sn => sn.rawId.toLowerCase().includes(targetSysName.toLowerCase()) || targetSysName.toLowerCase().includes(sn.rawId.toLowerCase()));
+        let sysNode = systemNodes.find(sn => sn.rawId.toLowerCase().includes(targetSysName.toLowerCase()) || targetSysName.toLowerCase().includes(sn.rawId.toLowerCase()));
+        if (!sysNode) sysNode = nodeMaps.systemByRawId.get(targetSysName);
         if (sysNode) {
           links.push({ source: capNode.id, target: sysNode.id });
         } else if (systemNodes.length > 0) {
@@ -400,10 +412,10 @@ export default function CapabilityGraphComponent({ companyGraph, capabilities, k
 
   // D. Link Inter-Capability dependencies
   (combinedCapabilities || []).forEach(cap => {
-    const capNode = capabilityNodes.find(cn => cn.id === cap.id);
+    const capNode = nodeMaps.capabilityNodeById.get(cap.id);
     if (capNode && cap.dependencies) {
       cap.dependencies.forEach(depId => {
-        const depNode = capabilityNodes.find(cn => cn.id === depId);
+        const depNode = nodeMaps.capabilityNodeById.get(depId);
         if (depNode) {
           links.push({ source: depNode.id, target: capNode.id, dashed: true });
         }
@@ -446,13 +458,13 @@ export default function CapabilityGraphComponent({ companyGraph, capabilities, k
     if (!highlightedProduct) return null;
     const ids = new Set<string>();
     
-    const pNode = productNodes.find(pn => pn.rawId === highlightedProduct);
+    const pNode = nodeMaps.productByRawId.get(highlightedProduct);
     if (pNode) {
       ids.add(pNode.id);
       
       const prodObj = companyGraph?.products.find(p => p.name === highlightedProduct);
       if (prodObj) {
-        const dNode = domainNodes.find(dn => dn.rawId === prodObj.domain);
+        const dNode = nodeMaps.domainByRawId.get(prodObj.domain);
         if (dNode) ids.add(dNode.id);
       }
       
@@ -469,7 +481,7 @@ export default function CapabilityGraphComponent({ companyGraph, capabilities, k
       });
     }
     return ids;
-  }, [highlightedProduct, productNodes, domainNodes, companyGraph, links]);
+  }, [highlightedProduct, nodeMaps, companyGraph, links]);
 
   // Dynamic node color and badge calculation helper
   const getNodeVisuals = (node: any) => {
