@@ -13,3 +13,6 @@
 ## 2026-09-07 - SVG Graph Node Lookups in React Mappings
 **Learning:** Found multiple instances of `O(N^2)` array operations in `CognitiveIde.tsx` (e.g., using `.find` inside a `.map` loop to resolve capability IDs and hover states).
 **Action:** Use `Set` for `O(1)` array deduplication and pre-compute `Map` dictionaries for cross-array lookups before mapping over data structures to prevent blocking the main thread during React re-renders.
+## 2024-05-25 - React Hook Invalidation by Non-Memoized Parent Arrays
+**Learning:** In heavily nested graph visualization components (like `CapabilityGraph`), building node arrays without `useMemo` implicitly regenerates their object identities on every render. Even if you correctly apply `useMemo` to downstream lookups or mappings (like `adjacencyMap` or `combinedCapabilitiesById` using those nodes), those hooks are completely nullified because their dependency arrays contain the frequently re-allocated node arrays.
+**Action:** When building complex SVG graph states, explicitly memoize every intermediate dataset (nodes, edges, node dicts) that serves as a dependency for a subsequent derived computation. Ensure cascading lookups explicitly consume pre-computed `Map` instances rather than iterating linearly over the graph.

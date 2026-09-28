@@ -202,82 +202,90 @@ export default function CapabilityGraphComponent({ companyGraph, capabilities, k
   const viewBoxWidth = 500;
 
   // 1. Domains (Y: 50)
-  const domainNodes = (companyGraph?.domains || []).map((dom, idx, arr) => {
-    const count = arr.length;
-    const x = count > 1
-      ? 60 + (idx * (viewBoxWidth - 120)) / (count - 1)
-      : viewBoxWidth / 2;
-    const id = `dom-${dom.name.toLowerCase().replace(/\s+/g, "-")}`;
-    return {
-      id,
-      rawId: dom.name,
-      label: dom.name,
-      type: "domain",
-      x,
-      y: 50,
-      color: "#BF5AF2",
-      desc: dom.description,
-    };
-  });
+  const domainNodes = useMemo(() => {
+    return (companyGraph?.domains || []).map((dom, idx, arr) => {
+      const count = arr.length;
+      const x = count > 1
+        ? 60 + (idx * (viewBoxWidth - 120)) / (count - 1)
+        : viewBoxWidth / 2;
+      const id = `dom-${dom.name.toLowerCase().replace(/\s+/g, "-")}`;
+      return {
+        id,
+        rawId: dom.name,
+        label: dom.name,
+        type: "domain",
+        x,
+        y: 50,
+        color: "#BF5AF2",
+        desc: dom.description,
+      };
+    });
+  }, [companyGraph?.domains, viewBoxWidth]);
 
   // 2. Products (Y: 120)
-  const productNodes = (companyGraph?.products || []).map((prod, idx, arr) => {
-    const count = arr.length;
-    const x = count > 1
-      ? 100 + (idx * (viewBoxWidth - 200)) / (count - 1)
-      : viewBoxWidth / 2;
-    const id = `prod-${prod.name.toLowerCase().replace(/\s+/g, "-")}`;
-    return {
-      id,
-      rawId: prod.name,
-      label: prod.name,
-      type: "product",
-      x,
-      y: 120,
-      color: "#0A84FF",
-      desc: prod.businessValue || `Product offering: ${prod.name}`,
-    };
-  });
+  const productNodes = useMemo(() => {
+    return (companyGraph?.products || []).map((prod, idx, arr) => {
+      const count = arr.length;
+      const x = count > 1
+        ? 100 + (idx * (viewBoxWidth - 200)) / (count - 1)
+        : viewBoxWidth / 2;
+      const id = `prod-${prod.name.toLowerCase().replace(/\s+/g, "-")}`;
+      return {
+        id,
+        rawId: prod.name,
+        label: prod.name,
+        type: "product",
+        x,
+        y: 120,
+        color: "#0A84FF",
+        desc: prod.businessValue || `Product offering: ${prod.name}`,
+      };
+    });
+  }, [companyGraph?.products, viewBoxWidth]);
 
   // 3. Capabilities (Y: 220)
-  const capabilityNodes = (combinedCapabilities || []).map((cap, idx, arr) => {
-    const count = arr.length;
-    const x = count > 1
-      ? 50 + (idx * (viewBoxWidth - 100)) / (count - 1)
-      : viewBoxWidth / 2;
-    return {
-      id: cap.id,
-      rawId: cap.id,
-      label: cap.name,
-      type: "capability",
-      x,
-      y: 220,
-      color: "#00F0FF",
-      details: cap.purpose,
-    };
-  });
+  const capabilityNodes = useMemo(() => {
+    return (combinedCapabilities || []).map((cap, idx, arr) => {
+      const count = arr.length;
+      const x = count > 1
+        ? 50 + (idx * (viewBoxWidth - 100)) / (count - 1)
+        : viewBoxWidth / 2;
+      return {
+        id: cap.id,
+        rawId: cap.id,
+        label: cap.name,
+        type: "capability",
+        x,
+        y: 220,
+        color: "#00F0FF",
+        details: cap.purpose,
+      };
+    });
+  }, [combinedCapabilities, viewBoxWidth]);
 
   // 4. Systems (Y: 310)
-  const systemNodes = (companyGraph?.canonicalSystems || []).map((sys, idx, arr) => {
-    const count = arr.length;
-    const x = count > 1
-      ? 120 + (idx * (viewBoxWidth - 240)) / (count - 1)
-      : viewBoxWidth / 2;
-    const id = `sys-${sys.name.toLowerCase().replace(/\s+/g, "-")}`;
-    return {
-      id,
-      rawId: sys.name,
-      label: sys.name,
-      type: "system",
-      x,
-      y: 310,
-      color: "#FF375F",
-      desc: sys.purpose,
-    };
-  });
+  const systemNodes = useMemo(() => {
+    return (companyGraph?.canonicalSystems || []).map((sys, idx, arr) => {
+      const count = arr.length;
+      const x = count > 1
+        ? 120 + (idx * (viewBoxWidth - 240)) / (count - 1)
+        : viewBoxWidth / 2;
+      const id = `sys-${sys.name.toLowerCase().replace(/\s+/g, "-")}`;
+      return {
+        id,
+        rawId: sys.name,
+        label: sys.name,
+        type: "system",
+        x,
+        y: 310,
+        color: "#FF375F",
+        desc: sys.purpose,
+      };
+    });
+  }, [companyGraph?.canonicalSystems, viewBoxWidth]);
 
   // 5. Abide Micro-Nodes (Y: 390)
-  const abideNodes = [
+  const abideNodes = useMemo(() => [
     {
       id: "abide-node-a",
       rawId: "Abide-Node-A",
@@ -308,121 +316,136 @@ export default function CapabilityGraphComponent({ companyGraph, capabilities, k
       color: "#0A84FF", // Blue
       desc: "Gnomledger decentralized peer lineage witness anchor."
     }
-  ];
+  ], []);
 
-  const nodes = [
+  const nodes = useMemo(() => [
     ...domainNodes,
     ...productNodes,
     ...capabilityNodes,
     ...systemNodes,
     ...abideNodes,
-  ];
+  ], [domainNodes, productNodes, capabilityNodes, systemNodes, abideNodes]);
 
   // Dynamic link generation linking domain to product, product to capability, and capability to system
-  const links: { source: string; target: string; dashed?: boolean }[] = [];
+  const links = useMemo(() => {
+    const l = [];
 
-  // A. Link Domain -> Product
-  (companyGraph?.products || []).forEach(prod => {
-    const pNode = productNodes.find(pn => pn.rawId === prod.name);
-    if (pNode) {
-      const dNode = domainNodes.find(dn => dn.rawId === prod.domain);
-      if (dNode) {
-        links.push({ source: dNode.id, target: pNode.id });
+    // O(1) lookups for nodes
+    const productNodesByRawId = new Map();
+    productNodes.forEach(pn => productNodesByRawId.set(pn.rawId, pn));
+
+    const domainNodesByRawId = new Map();
+    domainNodes.forEach(dn => domainNodesByRawId.set(dn.rawId, dn));
+
+    const capabilityNodesById = new Map();
+    capabilityNodes.forEach(cn => capabilityNodesById.set(cn.id, cn));
+
+
+    // A. Link Domain -> Product
+    (companyGraph?.products || []).forEach(prod => {
+      const pNode = productNodesByRawId.get(prod.name);
+      if (pNode) {
+        const dNode = domainNodesByRawId.get(prod.domain);
+        if (dNode) {
+          l.push({ source: dNode.id, target: pNode.id });
+        }
       }
-    }
-  });
+    });
 
-  if (links.length === 0) {
-    (companyGraph?.domains || []).forEach(dom => {
-      const dNode = domainNodes.find(dn => dn.rawId === dom.name);
-      if (dNode && dom.products) {
-        dom.products.forEach(pName => {
-          const pNode = productNodes.find(pn => pn.rawId === pName);
-          if (pNode) {
-            links.push({ source: dNode.id, target: pNode.id });
+    if (l.length === 0) {
+      (companyGraph?.domains || []).forEach(dom => {
+        const dNode = domainNodesByRawId.get(dom.name);
+        if (dNode && dom.products) {
+          dom.products.forEach(pName => {
+            const pNode = productNodesByRawId.get(pName);
+            if (pNode) {
+              l.push({ source: dNode.id, target: pNode.id });
+            }
+          });
+        }
+      });
+    }
+
+    // B. Link Product -> Capability (Heuristic mapping based on domain context or sequential distribution)
+    (combinedCapabilities || []).forEach((cap, idx) => {
+      const capNode = capabilityNodesById.get(cap.id);
+      if (capNode) {
+        let matchedProd = null;
+        if (cap.owner === "Developer Sub-agent" && cap.canonicalDataDomain) {
+          matchedProd = productNodesByRawId.get(cap.canonicalDataDomain);
+        }
+        if (!matchedProd) {
+          matchedProd = productNodes.find(pn => {
+            const prodLower = pn.rawId.toLowerCase();
+            const capLower = cap.id.toLowerCase();
+            return prodLower.includes("os") && (capLower.includes("session") || capLower.includes("route") || capLower.includes("eligibility") || capLower.includes("govern"));
+          });
+        }
+        if (!matchedProd) {
+          matchedProd = productNodes.find(pn => {
+            const prodLower = pn.rawId.toLowerCase();
+            const capLower = cap.id.toLowerCase();
+            return prodLower.includes("escrow") && (capLower.includes("settle") || capLower.includes("evidence") || capLower.includes("dns") || capLower.includes("verify") || capLower.includes("mint"));
+          });
+        }
+        if (!matchedProd && productNodes.length > 0) {
+          matchedProd = productNodes[idx % productNodes.length];
+        }
+        if (matchedProd) {
+          l.push({ source: matchedProd.id, target: capNode.id });
+        }
+      }
+    });
+
+    // C. Link Capability -> Canonical System
+    (combinedCapabilities || []).forEach(cap => {
+      const capNode = capabilityNodesById.get(cap.id);
+      if (capNode) {
+        const targetSysName = cap.canonicalServiceSystem || cap.canonicalSystem;
+        if (targetSysName) {
+          const sysNode = systemNodes.find(sn => sn.rawId.toLowerCase().includes(targetSysName.toLowerCase()) || targetSysName.toLowerCase().includes(sn.rawId.toLowerCase()));
+          if (sysNode) {
+            l.push({ source: capNode.id, target: sysNode.id });
+          } else if (systemNodes.length > 0) {
+            const fallbackSys = systemNodes.find(sn => cap.id.includes("session") || cap.id.includes("eligibility") ? sn.rawId.includes("Router") : sn.rawId.includes("Ledger"));
+            if (fallbackSys) {
+              l.push({ source: capNode.id, target: fallbackSys.id });
+            } else {
+              l.push({ source: capNode.id, target: systemNodes[0].id });
+            }
+          }
+        }
+      }
+    });
+
+    // D. Link Inter-Capability dependencies
+    (combinedCapabilities || []).forEach(cap => {
+      const capNode = capabilityNodesById.get(cap.id);
+      if (capNode && cap.dependencies) {
+        cap.dependencies.forEach(depId => {
+          const depNode = capabilityNodesById.get(depId);
+          if (depNode) {
+            l.push({ source: depNode.id, target: capNode.id, dashed: true });
           }
         });
       }
     });
-  }
 
-  // B. Link Product -> Capability (Heuristic mapping based on domain context or sequential distribution)
-  (combinedCapabilities || []).forEach((cap, idx) => {
-    const capNode = capabilityNodes.find(cn => cn.id === cap.id);
-    if (capNode) {
-      let matchedProd = null;
-      if (cap.owner === "Developer Sub-agent" && cap.canonicalDataDomain) {
-        matchedProd = productNodes.find(pn => pn.rawId === cap.canonicalDataDomain);
+    // E. Link System -> Abide Micro-Nodes
+    systemNodes.forEach(sn => {
+      if (sn.rawId.includes("Router")) {
+        l.push({ source: sn.id, target: "abide-node-b" });
+      } else if (sn.rawId.includes("Ledger") || sn.rawId.includes("Gnomledger")) {
+        l.push({ source: sn.id, target: "abide-node-c" });
       }
-      if (!matchedProd) {
-        matchedProd = productNodes.find(pn => {
-          const prodLower = pn.rawId.toLowerCase();
-          const capLower = cap.id.toLowerCase();
-          return prodLower.includes("os") && (capLower.includes("session") || capLower.includes("route") || capLower.includes("eligibility") || capLower.includes("govern"));
-        });
-      }
-      if (!matchedProd) {
-        matchedProd = productNodes.find(pn => {
-          const prodLower = pn.rawId.toLowerCase();
-          const capLower = cap.id.toLowerCase();
-          return prodLower.includes("escrow") && (capLower.includes("settle") || capLower.includes("evidence") || capLower.includes("dns") || capLower.includes("verify") || capLower.includes("mint"));
-        });
-      }
-      if (!matchedProd && productNodes.length > 0) {
-        matchedProd = productNodes[idx % productNodes.length];
-      }
-      if (matchedProd) {
-        links.push({ source: matchedProd.id, target: capNode.id });
-      }
+    });
+    // Connect Node A (Secure Enclave) to the first system (or any system containing Security or Router)
+    if (systemNodes[0]) {
+      l.push({ source: systemNodes[0].id, target: "abide-node-a" });
     }
-  });
 
-  // C. Link Capability -> Canonical System
-  (combinedCapabilities || []).forEach(cap => {
-    const capNode = capabilityNodes.find(cn => cn.id === cap.id);
-    if (capNode) {
-      const targetSysName = cap.canonicalServiceSystem || cap.canonicalSystem;
-      if (targetSysName) {
-        const sysNode = systemNodes.find(sn => sn.rawId.toLowerCase().includes(targetSysName.toLowerCase()) || targetSysName.toLowerCase().includes(sn.rawId.toLowerCase()));
-        if (sysNode) {
-          links.push({ source: capNode.id, target: sysNode.id });
-        } else if (systemNodes.length > 0) {
-          const fallbackSys = systemNodes.find(sn => cap.id.includes("session") || cap.id.includes("eligibility") ? sn.rawId.includes("Router") : sn.rawId.includes("Ledger"));
-          if (fallbackSys) {
-            links.push({ source: capNode.id, target: fallbackSys.id });
-          } else {
-            links.push({ source: capNode.id, target: systemNodes[0].id });
-          }
-        }
-      }
-    }
-  });
-
-  // D. Link Inter-Capability dependencies
-  (combinedCapabilities || []).forEach(cap => {
-    const capNode = capabilityNodes.find(cn => cn.id === cap.id);
-    if (capNode && cap.dependencies) {
-      cap.dependencies.forEach(depId => {
-        const depNode = capabilityNodes.find(cn => cn.id === depId);
-        if (depNode) {
-          links.push({ source: depNode.id, target: capNode.id, dashed: true });
-        }
-      });
-    }
-  });
-
-  // E. Link System -> Abide Micro-Nodes
-  systemNodes.forEach(sn => {
-    if (sn.rawId.includes("Router")) {
-      links.push({ source: sn.id, target: "abide-node-b" });
-    } else if (sn.rawId.includes("Ledger") || sn.rawId.includes("Gnomledger")) {
-      links.push({ source: sn.id, target: "abide-node-c" });
-    }
-  });
-  // Connect Node A (Secure Enclave) to the first system (or any system containing Security or Router)
-  if (systemNodes[0]) {
-    links.push({ source: systemNodes[0].id, target: "abide-node-a" });
-  }
+    return l;
+  }, [companyGraph, combinedCapabilities, productNodes, domainNodes, capabilityNodes, systemNodes]);
 
   // Product Offering Cascade highlighting lookup
   // ⚡ Bolt: Replace O(E) array search with O(1) hash map lookup for node adjacency
@@ -442,6 +465,15 @@ export default function CapabilityGraphComponent({ companyGraph, capabilities, k
     return new Map(combinedCapabilities.map(c => [c.id, c]));
   }, [combinedCapabilities]);
 
+  const forwardAdjacencyMap = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    links.forEach(l => {
+      if (!map.has(l.source)) map.set(l.source, new Set());
+      map.get(l.source)!.add(l.target);
+    });
+    return map;
+  }, [links]);
+
   const illuminatedNodeIds = useMemo(() => {
     if (!highlightedProduct) return null;
     const ids = new Set<string>();
@@ -456,20 +488,21 @@ export default function CapabilityGraphComponent({ companyGraph, capabilities, k
         if (dNode) ids.add(dNode.id);
       }
       
-      links.forEach(l => {
-        if (l.source === pNode.id) {
-          ids.add(l.target);
+      // Cascade forward lookups O(E) using pre-computed map instead of O(E^2) nested loop
+      const pNodeTargets = forwardAdjacencyMap.get(pNode.id);
+      if (pNodeTargets) {
+        pNodeTargets.forEach(targetId => {
+          ids.add(targetId);
           
-          links.forEach(l2 => {
-            if (l2.source === l.target) {
-              ids.add(l2.target);
-            }
-          });
-        }
-      });
+          const targetTargets = forwardAdjacencyMap.get(targetId);
+          if (targetTargets) {
+            targetTargets.forEach(t2 => ids.add(t2));
+          }
+        });
+      }
     }
     return ids;
-  }, [highlightedProduct, productNodes, domainNodes, companyGraph, links]);
+  }, [highlightedProduct, productNodes, domainNodes, companyGraph, forwardAdjacencyMap]);
 
   // Dynamic node color and badge calculation helper
   const getNodeVisuals = (node: any) => {
