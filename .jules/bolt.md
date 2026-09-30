@@ -13,3 +13,7 @@
 ## 2026-09-07 - SVG Graph Node Lookups in React Mappings
 **Learning:** Found multiple instances of `O(N^2)` array operations in `CognitiveIde.tsx` (e.g., using `.find` inside a `.map` loop to resolve capability IDs and hover states).
 **Action:** Use `Set` for `O(1)` array deduplication and pre-compute `Map` dictionaries for cross-array lookups before mapping over data structures to prevent blocking the main thread during React re-renders.
+
+## 2024-05-18 - Replacing O(N^2) Array searches with O(N) Maps for Hierarchical Data
+**Learning:** In CapabilityGraph, mapping dynamic links between interdependent node types (Domain -> Product -> Capability -> System) using heuristics and nested `.find()` loops caused significant main thread blocking, as every hierarchy resolution ran at O(N^2) complexity against arrays like `combinedCapabilities` and `productNodes`.
+**Action:** Always pre-compute Map dictionaries (e.g. `productNodesByRawId`, `domainNodesByRawId`) immediately after hierarchical nodes generation to transform O(N^2) relationships resolution into O(1) cross-array lookups. Never use `.find()` in render data loops.
