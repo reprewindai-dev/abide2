@@ -13,3 +13,6 @@
 ## 2026-09-07 - SVG Graph Node Lookups in React Mappings
 **Learning:** Found multiple instances of `O(N^2)` array operations in `CognitiveIde.tsx` (e.g., using `.find` inside a `.map` loop to resolve capability IDs and hover states).
 **Action:** Use `Set` for `O(1)` array deduplication and pre-compute `Map` dictionaries for cross-array lookups before mapping over data structures to prevent blocking the main thread during React re-renders.
+## 2024-05-18 - [Optimized React Render Graph Link Generation]
+**Learning:** Found an O(N^2) array search pattern in SVG Graph component's link generation (`CapabilityGraph.tsx`) which severely degraded performance as the node tree scaled.
+**Action:** Replaced `.find` with O(1) Map `.get` lookups using `useMemo` specifically around `productNodes`, `domainNodes`, and `capabilityNodes`. Ensure future SVG graph generators pre-compute reference maps before performing Cartesian link mapping.
