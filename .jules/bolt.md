@@ -13,3 +13,6 @@
 ## 2026-09-07 - SVG Graph Node Lookups in React Mappings
 **Learning:** Found multiple instances of `O(N^2)` array operations in `CognitiveIde.tsx` (e.g., using `.find` inside a `.map` loop to resolve capability IDs and hover states).
 **Action:** Use `Set` for `O(1)` array deduplication and pre-compute `Map` dictionaries for cross-array lookups before mapping over data structures to prevent blocking the main thread during React re-renders.
+## 2024-05-24 - [O(N^2) Array Traversal Blocking Main Thread in CapabilityGraph Topology Processing]
+**Learning:** During topology and link generation within `CapabilityGraph.tsx`, multiple sequential array `.find()` operations inside a larger `.forEach()` loop scaling linearly with product/capability node counts caused excessive main-thread work. This O(N^2) time complexity is devastating for complex React graph visualization re-renders.
+**Action:** Always pre-compute Map dictionaries (e.g. `productNodesByRawId`, `domainNodesByRawId`, `capabilityNodesById`) using `useMemo` immediately after creating arrays of node objects. Use O(1) Map `.get()` lookups instead of `.find()` to avoid UI thread stalling during recursive node edge pairing logic.
