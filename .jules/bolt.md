@@ -13,3 +13,6 @@
 ## 2026-09-07 - SVG Graph Node Lookups in React Mappings
 **Learning:** Found multiple instances of `O(N^2)` array operations in `CognitiveIde.tsx` (e.g., using `.find` inside a `.map` loop to resolve capability IDs and hover states).
 **Action:** Use `Set` for `O(1)` array deduplication and pre-compute `Map` dictionaries for cross-array lookups before mapping over data structures to prevent blocking the main thread during React re-renders.
+## 2025-10-12 - Prevent Re-calculation of Nodes and Links on Hover
+**Learning:** React re-evaluates variables defined in the main component body on every render. If these variables require O(N) or O(N^2) searches (like iterating over lists to map nodes and then searching those lists to form links), they will cause significant performance bottlenecks when frequent state updates occur, such as during rapid hover events (`onMouseEnter` / `onMouseLeave`).
+**Action:** Always wrap heavy data transformations, complex array mappings, and nested loop iterations in a `useMemo` hook, ensuring that they are only recalculated when their specific dependencies (e.g., source data or layout dimensions) change, rather than on every component render.
