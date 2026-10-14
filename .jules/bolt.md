@@ -13,3 +13,6 @@
 ## 2026-09-07 - SVG Graph Node Lookups in React Mappings
 **Learning:** Found multiple instances of `O(N^2)` array operations in `CognitiveIde.tsx` (e.g., using `.find` inside a `.map` loop to resolve capability IDs and hover states).
 **Action:** Use `Set` for `O(1)` array deduplication and pre-compute `Map` dictionaries for cross-array lookups before mapping over data structures to prevent blocking the main thread during React re-renders.
+## 2023-10-14 - Replace O(N) array inclusion check inside render mapping with O(1) Set lookup
+**Learning:** Checking an array's contents with `.includes` inside a large mapping like `filteredGraphNodes.map(...)` introduces an `O(N * M)` complexity pattern, heavily slowing down large node renders.
+**Action:** Use `useMemo` to convert the `highlightedPath` array into a `Set` before the render map starts, thereby reducing the search complexity per node mapping iteration to O(1).
