@@ -199,230 +199,244 @@ export default function CapabilityGraphComponent({ companyGraph, capabilities, k
   };
 
   // Dynamic coordinate generation for nodes based on compiled blueprint
-  const viewBoxWidth = 500;
+  // ⚡ Bolt: Wrapped heavy O(N) generation and O(N^2) matching loops in useMemo
+  // Prevents blocking the main thread when hover states change and trigger re-renders
+  const { domainNodes, productNodes, capabilityNodes, systemNodes, abideNodes, nodes, links } = useMemo(() => {
+    const viewBoxWidth = 500;
 
-  // 1. Domains (Y: 50)
-  const domainNodes = (companyGraph?.domains || []).map((dom, idx, arr) => {
-    const count = arr.length;
-    const x = count > 1
-      ? 60 + (idx * (viewBoxWidth - 120)) / (count - 1)
-      : viewBoxWidth / 2;
-    const id = `dom-${dom.name.toLowerCase().replace(/\s+/g, "-")}`;
-    return {
-      id,
-      rawId: dom.name,
-      label: dom.name,
-      type: "domain",
-      x,
-      y: 50,
-      color: "#BF5AF2",
-      desc: dom.description,
-    };
-  });
+    // 1. Domains (Y: 50)
+    const dNodes = (companyGraph?.domains || []).map((dom, idx, arr) => {
+      const count = arr.length;
+      const x = count > 1
+        ? 60 + (idx * (viewBoxWidth - 120)) / (count - 1)
+        : viewBoxWidth / 2;
+      const id = `dom-${dom.name.toLowerCase().replace(/\s+/g, "-")}`;
+      return {
+        id,
+        rawId: dom.name,
+        label: dom.name,
+        type: "domain",
+        x,
+        y: 50,
+        color: "#BF5AF2",
+        desc: dom.description,
+      };
+    });
 
-  // 2. Products (Y: 120)
-  const productNodes = (companyGraph?.products || []).map((prod, idx, arr) => {
-    const count = arr.length;
-    const x = count > 1
-      ? 100 + (idx * (viewBoxWidth - 200)) / (count - 1)
-      : viewBoxWidth / 2;
-    const id = `prod-${prod.name.toLowerCase().replace(/\s+/g, "-")}`;
-    return {
-      id,
-      rawId: prod.name,
-      label: prod.name,
-      type: "product",
-      x,
-      y: 120,
-      color: "#0A84FF",
-      desc: prod.businessValue || `Product offering: ${prod.name}`,
-    };
-  });
+    // 2. Products (Y: 120)
+    const pNodes = (companyGraph?.products || []).map((prod, idx, arr) => {
+      const count = arr.length;
+      const x = count > 1
+        ? 100 + (idx * (viewBoxWidth - 200)) / (count - 1)
+        : viewBoxWidth / 2;
+      const id = `prod-${prod.name.toLowerCase().replace(/\s+/g, "-")}`;
+      return {
+        id,
+        rawId: prod.name,
+        label: prod.name,
+        type: "product",
+        x,
+        y: 120,
+        color: "#0A84FF",
+        desc: prod.businessValue || `Product offering: ${prod.name}`,
+      };
+    });
 
-  // 3. Capabilities (Y: 220)
-  const capabilityNodes = (combinedCapabilities || []).map((cap, idx, arr) => {
-    const count = arr.length;
-    const x = count > 1
-      ? 50 + (idx * (viewBoxWidth - 100)) / (count - 1)
-      : viewBoxWidth / 2;
-    return {
-      id: cap.id,
-      rawId: cap.id,
-      label: cap.name,
-      type: "capability",
-      x,
-      y: 220,
-      color: "#00F0FF",
-      details: cap.purpose,
-    };
-  });
+    // 3. Capabilities (Y: 220)
+    const cNodes = (combinedCapabilities || []).map((cap, idx, arr) => {
+      const count = arr.length;
+      const x = count > 1
+        ? 50 + (idx * (viewBoxWidth - 100)) / (count - 1)
+        : viewBoxWidth / 2;
+      return {
+        id: cap.id,
+        rawId: cap.id,
+        label: cap.name,
+        type: "capability",
+        x,
+        y: 220,
+        color: "#00F0FF",
+        details: cap.purpose,
+      };
+    });
 
-  // 4. Systems (Y: 310)
-  const systemNodes = (companyGraph?.canonicalSystems || []).map((sys, idx, arr) => {
-    const count = arr.length;
-    const x = count > 1
-      ? 120 + (idx * (viewBoxWidth - 240)) / (count - 1)
-      : viewBoxWidth / 2;
-    const id = `sys-${sys.name.toLowerCase().replace(/\s+/g, "-")}`;
-    return {
-      id,
-      rawId: sys.name,
-      label: sys.name,
-      type: "system",
-      x,
-      y: 310,
-      color: "#FF375F",
-      desc: sys.purpose,
-    };
-  });
+    // 4. Systems (Y: 310)
+    const sNodes = (companyGraph?.canonicalSystems || []).map((sys, idx, arr) => {
+      const count = arr.length;
+      const x = count > 1
+        ? 120 + (idx * (viewBoxWidth - 240)) / (count - 1)
+        : viewBoxWidth / 2;
+      const id = `sys-${sys.name.toLowerCase().replace(/\s+/g, "-")}`;
+      return {
+        id,
+        rawId: sys.name,
+        label: sys.name,
+        type: "system",
+        x,
+        y: 310,
+        color: "#FF375F",
+        desc: sys.purpose,
+      };
+    });
 
-  // 5. Abide Micro-Nodes (Y: 390)
-  const abideNodes = [
-    {
-      id: "abide-node-a",
-      rawId: "Abide-Node-A",
-      label: "Abide Node A",
-      type: "abide",
-      x: 100,
-      y: 390,
-      color: "#FF9F0A", // Orange
-      desc: "Lockerphycer physical security isolation enclave."
-    },
-    {
-      id: "abide-node-b",
-      rawId: "Abide-Node-B",
-      label: "Abide Node B",
-      type: "abide",
-      x: 250,
-      y: 390,
-      color: "#30D158", // Green
-      desc: "Cappo-backend & BYOS capability verification router."
-    },
-    {
-      id: "abide-node-c",
-      rawId: "Abide-Node-C",
-      label: "Abide Node C",
-      type: "abide",
-      x: 400,
-      y: 390,
-      color: "#0A84FF", // Blue
-      desc: "Gnomledger decentralized peer lineage witness anchor."
-    }
-  ];
-
-  const nodes = [
-    ...domainNodes,
-    ...productNodes,
-    ...capabilityNodes,
-    ...systemNodes,
-    ...abideNodes,
-  ];
-
-  // Dynamic link generation linking domain to product, product to capability, and capability to system
-  const links: { source: string; target: string; dashed?: boolean }[] = [];
-
-  // A. Link Domain -> Product
-  (companyGraph?.products || []).forEach(prod => {
-    const pNode = productNodes.find(pn => pn.rawId === prod.name);
-    if (pNode) {
-      const dNode = domainNodes.find(dn => dn.rawId === prod.domain);
-      if (dNode) {
-        links.push({ source: dNode.id, target: pNode.id });
+    // 5. Abide Micro-Nodes (Y: 390)
+    const aNodes = [
+      {
+        id: "abide-node-a",
+        rawId: "Abide-Node-A",
+        label: "Abide Node A",
+        type: "abide",
+        x: 100,
+        y: 390,
+        color: "#FF9F0A", // Orange
+        desc: "Lockerphycer physical security isolation enclave."
+      },
+      {
+        id: "abide-node-b",
+        rawId: "Abide-Node-B",
+        label: "Abide Node B",
+        type: "abide",
+        x: 250,
+        y: 390,
+        color: "#30D158", // Green
+        desc: "Cappo-backend & BYOS capability verification router."
+      },
+      {
+        id: "abide-node-c",
+        rawId: "Abide-Node-C",
+        label: "Abide Node C",
+        type: "abide",
+        x: 400,
+        y: 390,
+        color: "#0A84FF", // Blue
+        desc: "Gnomledger decentralized peer lineage witness anchor."
       }
-    }
-  });
+    ];
 
-  if (links.length === 0) {
-    (companyGraph?.domains || []).forEach(dom => {
-      const dNode = domainNodes.find(dn => dn.rawId === dom.name);
-      if (dNode && dom.products) {
-        dom.products.forEach(pName => {
-          const pNode = productNodes.find(pn => pn.rawId === pName);
-          if (pNode) {
-            links.push({ source: dNode.id, target: pNode.id });
+    const allNodes = [
+      ...dNodes,
+      ...pNodes,
+      ...cNodes,
+      ...sNodes,
+      ...aNodes,
+    ];
+
+    // Dynamic link generation linking domain to product, product to capability, and capability to system
+    const graphLinks: { source: string; target: string; dashed?: boolean }[] = [];
+
+    // A. Link Domain -> Product
+    (companyGraph?.products || []).forEach(prod => {
+      const pNode = pNodes.find(pn => pn.rawId === prod.name);
+      if (pNode) {
+        const dNode = dNodes.find(dn => dn.rawId === prod.domain);
+        if (dNode) {
+          graphLinks.push({ source: dNode.id, target: pNode.id });
+        }
+      }
+    });
+
+    if (graphLinks.length === 0) {
+      (companyGraph?.domains || []).forEach(dom => {
+        const dNode = dNodes.find(dn => dn.rawId === dom.name);
+        if (dNode && dom.products) {
+          dom.products.forEach(pName => {
+            const pNode = pNodes.find(pn => pn.rawId === pName);
+            if (pNode) {
+              graphLinks.push({ source: dNode.id, target: pNode.id });
+            }
+          });
+        }
+      });
+    }
+
+    // B. Link Product -> Capability (Heuristic mapping based on domain context or sequential distribution)
+    (combinedCapabilities || []).forEach((cap, idx) => {
+      const capNode = cNodes.find(cn => cn.id === cap.id);
+      if (capNode) {
+        let matchedProd = null;
+        if (cap.owner === "Developer Sub-agent" && cap.canonicalDataDomain) {
+          matchedProd = pNodes.find(pn => pn.rawId === cap.canonicalDataDomain);
+        }
+        if (!matchedProd) {
+          matchedProd = pNodes.find(pn => {
+            const prodLower = pn.rawId.toLowerCase();
+            const capLower = cap.id.toLowerCase();
+            return prodLower.includes("os") && (capLower.includes("session") || capLower.includes("route") || capLower.includes("eligibility") || capLower.includes("govern"));
+          });
+        }
+        if (!matchedProd) {
+          matchedProd = pNodes.find(pn => {
+            const prodLower = pn.rawId.toLowerCase();
+            const capLower = cap.id.toLowerCase();
+            return prodLower.includes("escrow") && (capLower.includes("settle") || capLower.includes("evidence") || capLower.includes("dns") || capLower.includes("verify") || capLower.includes("mint"));
+          });
+        }
+        if (!matchedProd && pNodes.length > 0) {
+          matchedProd = pNodes[idx % pNodes.length];
+        }
+        if (matchedProd) {
+          graphLinks.push({ source: matchedProd.id, target: capNode.id });
+        }
+      }
+    });
+
+    // C. Link Capability -> Canonical System
+    (combinedCapabilities || []).forEach(cap => {
+      const capNode = cNodes.find(cn => cn.id === cap.id);
+      if (capNode) {
+        const targetSysName = cap.canonicalServiceSystem || cap.canonicalSystem;
+        if (targetSysName) {
+          const sysNode = sNodes.find(sn => sn.rawId.toLowerCase().includes(targetSysName.toLowerCase()) || targetSysName.toLowerCase().includes(sn.rawId.toLowerCase()));
+          if (sysNode) {
+            graphLinks.push({ source: capNode.id, target: sysNode.id });
+          } else if (sNodes.length > 0) {
+            const fallbackSys = sNodes.find(sn => cap.id.includes("session") || cap.id.includes("eligibility") ? sn.rawId.includes("Router") : sn.rawId.includes("Ledger"));
+            if (fallbackSys) {
+              graphLinks.push({ source: capNode.id, target: fallbackSys.id });
+            } else {
+              graphLinks.push({ source: capNode.id, target: sNodes[0].id });
+            }
+          }
+        }
+      }
+    });
+
+    // D. Link Inter-Capability dependencies
+    (combinedCapabilities || []).forEach(cap => {
+      const capNode = cNodes.find(cn => cn.id === cap.id);
+      if (capNode && cap.dependencies) {
+        cap.dependencies.forEach(depId => {
+          const depNode = cNodes.find(cn => cn.id === depId);
+          if (depNode) {
+            graphLinks.push({ source: depNode.id, target: capNode.id, dashed: true });
           }
         });
       }
     });
-  }
 
-  // B. Link Product -> Capability (Heuristic mapping based on domain context or sequential distribution)
-  (combinedCapabilities || []).forEach((cap, idx) => {
-    const capNode = capabilityNodes.find(cn => cn.id === cap.id);
-    if (capNode) {
-      let matchedProd = null;
-      if (cap.owner === "Developer Sub-agent" && cap.canonicalDataDomain) {
-        matchedProd = productNodes.find(pn => pn.rawId === cap.canonicalDataDomain);
+    // E. Link System -> Abide Micro-Nodes
+    sNodes.forEach(sn => {
+      if (sn.rawId.includes("Router")) {
+        graphLinks.push({ source: sn.id, target: "abide-node-b" });
+      } else if (sn.rawId.includes("Ledger") || sn.rawId.includes("Gnomledger")) {
+        graphLinks.push({ source: sn.id, target: "abide-node-c" });
       }
-      if (!matchedProd) {
-        matchedProd = productNodes.find(pn => {
-          const prodLower = pn.rawId.toLowerCase();
-          const capLower = cap.id.toLowerCase();
-          return prodLower.includes("os") && (capLower.includes("session") || capLower.includes("route") || capLower.includes("eligibility") || capLower.includes("govern"));
-        });
-      }
-      if (!matchedProd) {
-        matchedProd = productNodes.find(pn => {
-          const prodLower = pn.rawId.toLowerCase();
-          const capLower = cap.id.toLowerCase();
-          return prodLower.includes("escrow") && (capLower.includes("settle") || capLower.includes("evidence") || capLower.includes("dns") || capLower.includes("verify") || capLower.includes("mint"));
-        });
-      }
-      if (!matchedProd && productNodes.length > 0) {
-        matchedProd = productNodes[idx % productNodes.length];
-      }
-      if (matchedProd) {
-        links.push({ source: matchedProd.id, target: capNode.id });
-      }
+    });
+    // Connect Node A (Secure Enclave) to the first system (or any system containing Security or Router)
+    if (sNodes[0]) {
+      graphLinks.push({ source: sNodes[0].id, target: "abide-node-a" });
     }
-  });
 
-  // C. Link Capability -> Canonical System
-  (combinedCapabilities || []).forEach(cap => {
-    const capNode = capabilityNodes.find(cn => cn.id === cap.id);
-    if (capNode) {
-      const targetSysName = cap.canonicalServiceSystem || cap.canonicalSystem;
-      if (targetSysName) {
-        const sysNode = systemNodes.find(sn => sn.rawId.toLowerCase().includes(targetSysName.toLowerCase()) || targetSysName.toLowerCase().includes(sn.rawId.toLowerCase()));
-        if (sysNode) {
-          links.push({ source: capNode.id, target: sysNode.id });
-        } else if (systemNodes.length > 0) {
-          const fallbackSys = systemNodes.find(sn => cap.id.includes("session") || cap.id.includes("eligibility") ? sn.rawId.includes("Router") : sn.rawId.includes("Ledger"));
-          if (fallbackSys) {
-            links.push({ source: capNode.id, target: fallbackSys.id });
-          } else {
-            links.push({ source: capNode.id, target: systemNodes[0].id });
-          }
-        }
-      }
-    }
-  });
-
-  // D. Link Inter-Capability dependencies
-  (combinedCapabilities || []).forEach(cap => {
-    const capNode = capabilityNodes.find(cn => cn.id === cap.id);
-    if (capNode && cap.dependencies) {
-      cap.dependencies.forEach(depId => {
-        const depNode = capabilityNodes.find(cn => cn.id === depId);
-        if (depNode) {
-          links.push({ source: depNode.id, target: capNode.id, dashed: true });
-        }
-      });
-    }
-  });
-
-  // E. Link System -> Abide Micro-Nodes
-  systemNodes.forEach(sn => {
-    if (sn.rawId.includes("Router")) {
-      links.push({ source: sn.id, target: "abide-node-b" });
-    } else if (sn.rawId.includes("Ledger") || sn.rawId.includes("Gnomledger")) {
-      links.push({ source: sn.id, target: "abide-node-c" });
-    }
-  });
-  // Connect Node A (Secure Enclave) to the first system (or any system containing Security or Router)
-  if (systemNodes[0]) {
-    links.push({ source: systemNodes[0].id, target: "abide-node-a" });
-  }
+    return {
+      domainNodes: dNodes,
+      productNodes: pNodes,
+      capabilityNodes: cNodes,
+      systemNodes: sNodes,
+      abideNodes: aNodes,
+      nodes: allNodes,
+      links: graphLinks
+    };
+  }, [companyGraph, combinedCapabilities]);
 
   // Product Offering Cascade highlighting lookup
   // ⚡ Bolt: Replace O(E) array search with O(1) hash map lookup for node adjacency
