@@ -13,3 +13,7 @@
 ## 2026-09-07 - SVG Graph Node Lookups in React Mappings
 **Learning:** Found multiple instances of `O(N^2)` array operations in `CognitiveIde.tsx` (e.g., using `.find` inside a `.map` loop to resolve capability IDs and hover states).
 **Action:** Use `Set` for `O(1)` array deduplication and pre-compute `Map` dictionaries for cross-array lookups before mapping over data structures to prevent blocking the main thread during React re-renders.
+
+## 2023-11-21 - React useMemo Invalidations via Unmemoized Arrays
+**Learning:** Found a performance issue in `CapabilityGraph.tsx` where complex data structures (nodes and links arrays) containing `O(N^2)` lookups were generated on every render. Even worse, other `useMemo` hooks dependent on these arrays were constantly invalidated (re-running on every hover state change) because unmemoized arrays have a new reference on every render.
+**Action:** Always wrap heavy list/array generation (like SVG node and link mappings) in a `useMemo` hook, especially if those arrays are used as dependencies for downstream hooks, to prevent widespread cache invalidations and main thread blocking.
