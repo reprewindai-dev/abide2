@@ -878,6 +878,9 @@ export async function executeCapability(payload: any) {
   const [ontologySearch, setOntologySearch] = useState("");
   const [highlightedPath, setHighlightedPath] = useState<string[]>([]);
 
+  // ⚡ Bolt Optimization: Replace O(N) array search with O(1) Set lookup
+  const highlightedPathSet = useMemo(() => new Set(highlightedPath), [highlightedPath]);
+
   // ⚡ Bolt Optimization: Replace O(N^2) search with O(1) hash map lookup
   const graphNodesById = useMemo(() => {
     return new Map(graphNodes.map(n => [n.id, n]));
@@ -2710,7 +2713,7 @@ export async function executeCapability(payload: any) {
                     <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-2 content-start overflow-y-auto pr-1">
                       {filteredGraphNodes.map(node => {
                         const isSelected = selectedGraphNodeId === node.id;
-                        const isHighlighted = highlightedPath.includes(node.id);
+                        const isHighlighted = highlightedPathSet.has(node.id);
                         return (
                           <motion.button
                             whileHover={{ scale: 1.02 }}
