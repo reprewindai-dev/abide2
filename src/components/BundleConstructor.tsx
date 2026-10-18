@@ -26,6 +26,11 @@ export default function BundleConstructor({ productOfferings, capabilities }: Bu
   const [monthlyVolumeK, setMonthlyVolumeK] = useState<number>(250); // in thousands
   const [receipt, setReceipt] = useState<any>(null);
 
+  // ⚡ Bolt Optimization: Replace O(N^2) array search with O(1) hash map lookup
+  const capabilitiesById = useMemo(() => {
+    return new Map(capabilities.map(c => [c.id, c]));
+  }, [capabilities]);
+
   // Toggle cap check
   const handleToggleCap = (id: string) => {
     setSelectedCaps(prev => ({
@@ -114,7 +119,7 @@ export default function BundleConstructor({ productOfferings, capabilities }: Bu
                 <span className="text-[10px] font-mono text-[#444] uppercase block">Bundled Capabilities:</span>
                 <div className="flex flex-wrap gap-1.5">
                   {prod.capabilities.map((capId, i) => {
-                    const matched = capabilities.find(c => c.id === capId);
+                    const matched = capabilitiesById.get(capId);
                     return (
                       <span key={i} className="text-[9px] font-mono bg-[#111] border border-[#222] px-2 py-0.5 text-gray-300 font-semibold uppercase">
                         {matched ? matched.name : capId}
