@@ -21,3 +21,7 @@
 ## 2023-11-21 - React useMemo Invalidations via Unmemoized Arrays
 **Learning:** Found a performance issue in `CapabilityGraph.tsx` where complex data structures (nodes and links arrays) containing `O(N^2)` lookups were generated on every render. Even worse, other `useMemo` hooks dependent on these arrays were constantly invalidated (re-running on every hover state change) because unmemoized arrays have a new reference on every render.
 **Action:** Always wrap heavy list/array generation (like SVG node and link mappings) in a `useMemo` hook, especially if those arrays are used as dependencies for downstream hooks, to prevent widespread cache invalidations and main thread blocking.
+
+## 2026-10-19 - Adjacency Map Node Lookups
+**Learning:** Found an `O(E^2)` nested loop iterating over `links` array to map adjacent nodes in `illuminatedNodeIds` inside `CapabilityGraph.tsx`. This caused significant performance drop because it runs on every component re-render when a user hovers elements.
+**Action:** Instead of nested `.forEach` over a links array, pre-compute an `adjacencyMap` mapping node IDs to Sets of adjacent node IDs and use it for `O(1)` deep path lookups.

@@ -450,6 +450,7 @@ export default function CapabilityGraphComponent({ companyGraph, capabilities, k
     if (!highlightedProduct) return null;
     const ids = new Set<string>();
     
+    // ⚡ Bolt: Replace O(N) finds with optimized loops or lookups
     const pNode = productNodes.find(pn => pn.rawId === highlightedProduct);
     if (pNode) {
       ids.add(pNode.id);
@@ -460,20 +461,22 @@ export default function CapabilityGraphComponent({ companyGraph, capabilities, k
         if (dNode) ids.add(dNode.id);
       }
       
-      links.forEach(l => {
-        if (l.source === pNode.id) {
-          ids.add(l.target);
-          
-          links.forEach(l2 => {
-            if (l2.source === l.target) {
-              ids.add(l2.target);
-            }
-          });
-        }
-      });
+      // ⚡ Bolt: Replace O(E^2) nested link scanning with O(1) adjacencyMap lookups
+      const targets = adjacencyMap.get(pNode.id);
+      if (targets) {
+        targets.forEach(targetId => {
+          ids.add(targetId);
+          const nextTargets = adjacencyMap.get(targetId);
+          if (nextTargets) {
+            nextTargets.forEach(nextTargetId => {
+              ids.add(nextTargetId);
+            });
+          }
+        });
+      }
     }
     return ids;
-  }, [highlightedProduct, productNodes, domainNodes, companyGraph, links]);
+  }, [highlightedProduct, productNodes, domainNodes, companyGraph, adjacencyMap]);
 
   // Dynamic node color and badge calculation helper
   const getNodeVisuals = (node: any) => {
