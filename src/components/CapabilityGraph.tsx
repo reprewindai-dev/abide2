@@ -475,65 +475,77 @@ export default function CapabilityGraphComponent({ companyGraph, capabilities, k
     return ids;
   }, [highlightedProduct, productNodes, domainNodes, companyGraph, links]);
 
-  // Dynamic node color and badge calculation helper
-  const getNodeVisuals = (node: any) => {
-    if (node.type !== "capability") {
-      return { color: node.color, extraLabel: "" };
-    }
+  // ⚡ Bolt: Replace O(N) calculation in render loop with pre-computed map of node visuals.
+  // Pre-computes node colors and labels once instead of on every render/hover event.
+  const nodeVisualsMap = useMemo(() => {
+    const map = new Map<string, { color: string, extraLabel: string }>();
 
-    if (killedCaps && killedCaps[node.id]) {
-      return { color: "#EF4444", extraLabel: "HALTED" };
-    }
-
-    const cap = combinedCapabilitiesById.get(node.id);
-    if (!cap) return { color: node.color, extraLabel: "" };
-
-    let color = node.color;
-    let extraLabel = "";
-
-    if (visualizeMode === "status") {
-      const state = cap.maturityState?.toLowerCase() || "";
-      if (state.includes("production")) {
-        color = "#10B981"; // Emerald green
-        extraLabel = "PROD";
-      } else if (state.includes("simulated")) {
-        color = "#F59E0B"; // Amber orange
-        extraLabel = "SIM";
-      } else {
-        color = "#3B82F6"; // Blue
-        extraLabel = "CONCEPT";
+    nodes.forEach((node: any) => {
+      if (node.type !== "capability") {
+        map.set(node.id, { color: node.color, extraLabel: "" });
+        return;
       }
-    } else if (visualizeMode === "cost") {
-      const price = cap.pricingModel?.priceFloor || 0;
-      if (price === 0) {
-        color = "#10B981"; // Emerald free
-        extraLabel = "FREE";
-      } else if (price < 0.02) {
-        color = "#60A5FA"; // Cyan/blue
-        extraLabel = `$${price}`;
-      } else if (price < 0.1) {
-        color = "#F59E0B"; // Amber
-        extraLabel = `$${price}`;
-      } else {
-        color = "#EF4444"; // Red
-        extraLabel = `$${price}`;
-      }
-    } else if (visualizeMode === "verification") {
-      const state = cap.verificationState?.toLowerCase() || "";
-      if (state.includes("verified")) {
-        color = "#10B981"; // Emerald
-        extraLabel = "SAFE";
-      } else if (state.includes("drift")) {
-        color = "#EF4444"; // Red
-        extraLabel = "DRIFT";
-      } else {
-        color = "#6B7280"; // Slate gray
-        extraLabel = "UNVERIFIED";
-      }
-    }
 
-    return { color, extraLabel };
-  };
+      if (killedCaps && killedCaps[node.id]) {
+        map.set(node.id, { color: "#EF4444", extraLabel: "HALTED" });
+        return;
+      }
+
+      const cap = combinedCapabilitiesById.get(node.id);
+      if (!cap) {
+        map.set(node.id, { color: node.color, extraLabel: "" });
+        return;
+      }
+
+      let color = node.color;
+      let extraLabel = "";
+
+      if (visualizeMode === "status") {
+        const state = cap.maturityState?.toLowerCase() || "";
+        if (state.includes("production")) {
+          color = "#10B981"; // Emerald green
+          extraLabel = "PROD";
+        } else if (state.includes("simulated")) {
+          color = "#F59E0B"; // Amber orange
+          extraLabel = "SIM";
+        } else {
+          color = "#3B82F6"; // Blue
+          extraLabel = "CONCEPT";
+        }
+      } else if (visualizeMode === "cost") {
+        const price = cap.pricingModel?.priceFloor || 0;
+        if (price === 0) {
+          color = "#10B981"; // Emerald free
+          extraLabel = "FREE";
+        } else if (price < 0.02) {
+          color = "#60A5FA"; // Cyan/blue
+          extraLabel = `$${price}`;
+        } else if (price < 0.1) {
+          color = "#F59E0B"; // Amber
+          extraLabel = `$${price}`;
+        } else {
+          color = "#EF4444"; // Red
+          extraLabel = `$${price}`;
+        }
+      } else if (visualizeMode === "verification") {
+        const state = cap.verificationState?.toLowerCase() || "";
+        if (state.includes("verified")) {
+          color = "#10B981"; // Emerald
+          extraLabel = "SAFE";
+        } else if (state.includes("drift")) {
+          color = "#EF4444"; // Red
+          extraLabel = "DRIFT";
+        } else {
+          color = "#6B7280"; // Slate gray
+          extraLabel = "UNVERIFIED";
+        }
+      }
+
+      map.set(node.id, { color, extraLabel });
+    });
+
+    return map;
+  }, [nodes, killedCaps, combinedCapabilitiesById, visualizeMode]);
 
   // ⚡ Bolt: Replace O(N^2) array search with O(N) hash map lookup
   // Pre-computes the nodes dictionary to avoid N^2 loop inside links mapping
@@ -695,7 +707,7 @@ export default function CapabilityGraphComponent({ companyGraph, capabilities, k
                 opacity = isIlluminatedNode ? "1" : "0.15";
               }
 
-              const { color, extraLabel } = getNodeVisuals(node);
+              const { color, extraLabel } = nodeVisualsMap.get(node.id) || { color: node.color, extraLabel: "" };
 
               return (
                 <g

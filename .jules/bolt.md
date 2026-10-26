@@ -21,3 +21,6 @@
 ## 2023-11-21 - React useMemo Invalidations via Unmemoized Arrays
 **Learning:** Found a performance issue in `CapabilityGraph.tsx` where complex data structures (nodes and links arrays) containing `O(N^2)` lookups were generated on every render. Even worse, other `useMemo` hooks dependent on these arrays were constantly invalidated (re-running on every hover state change) because unmemoized arrays have a new reference on every render.
 **Action:** Always wrap heavy list/array generation (like SVG node and link mappings) in a `useMemo` hook, especially if those arrays are used as dependencies for downstream hooks, to prevent widespread cache invalidations and main thread blocking.
+## 2025-03-08 - SVG Graph Render Loop Optimization
+**Learning:** Calling complex helper functions (e.g. `getNodeVisuals`) that perform cross-map lookups and string operations inside O(N) `.map()` render blocks of SVG components (`CapabilityGraph`) severely impacts frames during high-frequency state updates like `hoveredNode` changes.
+**Action:** When working on complex visualization components, always pre-compute node/link properties into a `Map` wrapped in a `useMemo` hook to reduce render-loop calculations from O(N) to O(1) hash map lookups.

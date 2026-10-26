@@ -100,7 +100,7 @@ importers:
         specifier: 0.31.10
         version: 0.31.10
       esbuild:
-        specifier: ^0.28.1
+        specifier: ^0.28.2
         version: 0.28.2
       tailwindcss:
         specifier: ^4.1.14
